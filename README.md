@@ -98,8 +98,13 @@ complete check is therefore a comparison against commit `a76e7e9` in the git his
 **What this does and does not show.** An exploratory analysis added after the first run (labelled as such everywhere)
 shows that **exposure alone, without any chip data, reaches AUC 0.85** (total Cmax). The potency-exposure margin adds a
 small increment over exposure alone: +0.04 [+0.00, +0.09] (total) and +0.08 [+0.03, +0.13] (free); on the narrower
-endpoint the total-margin increment's CI includes zero. In plain words: in-vitro potency means little until it is set
-against exposure, and most of the signal is the exposure.
+endpoint the total-margin increment's CI includes zero. That in-vitro potency means little until it is set against
+exposure is the benchmark authors' own published finding, not ours: they report that in-vitro toxicity values "showed
+little ability for distinguishing DILI concern classes on their own", and ROC AUC up to 96 % for the ratio of clinical
+Cmax to lowest in-vitro toxicity, in a retrospective analysis of all 241 drugs (Geci et al. 2026,
+[doi:10.1007/s00204-026-04305-2](https://doi.org/10.1007/s00204-026-04305-2)). What this repository adds on that
+benchmark is the out-of-sample test of their ratio, under a plan and a split committed before the first evaluation, with
+structure-grouped folds and paired confidence intervals.
 
 ## Findings we report against ourselves
 
@@ -136,7 +141,7 @@ Public-domain and CC-BY files are cached in `data/raw/`. The Geci et al. reposit
 spreadsheets are **not redistributed**: `make data` fetches them at a pinned commit and verifies the checksum.
 
 - Ewart L, et al. Performance assessment and economic analysis of a human Liver-Chip for predictive toxicology. *Commun Med* 2, 154 (2022). CC-BY 4.0.
-- Geci R, Sayin AZ, Schaller S, Kuepfer L. Integration of in vitro and in silico approaches enables prediction of drug-induced liver injury. *Arch Toxicol* 100(5):2029-2046 (2026).
+- Geci R, Sayin AZ, Schaller S, Kuepfer L. Integration of in vitro and in silico approaches enables prediction of drug-induced liver injury. *Arch Toxicol* 100(5):2029-2046 (2026). doi:10.1007/s00204-026-04305-2.
 - Shafer TJ, et al. Evaluation of chemical effects on network formation in cortical neurons grown on microelectrode arrays. *Toxicol Sci* 169(2):436-455 (2019). Data: doi:10.23719/1503191 (US EPA, public domain).
 - U.S. FDA. DILIrank 2.0 (public domain).
 
