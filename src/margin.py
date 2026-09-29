@@ -117,6 +117,11 @@ class MarginResult:
 # When it is unknown, the free margin is not a single value: the band covers that whole range.
 UNKNOWN_FU_RANGE = (1e-3, 1.0)
 NO_MARGIN = "NO MARGIN"
+# A free-basis threshold compares against the unbound concentration. With no measured fraction
+# unbound, the free band is the spread of an assumed log-uniform range over UNKNOWN_FU_RANGE, so any
+# verdict read off it would rest on that assumption rather than on a measurement. The band is
+# reported; the verdict waits for the measurement.
+NO_VERDICT = "NO VERDICT (fraction unbound not measured)"
 
 
 def band_of(samples: np.ndarray, point: float | None = None) -> tuple[float, float]:
@@ -132,14 +137,25 @@ def _bad(value: float | None) -> bool:
     return value is None or not np.isfinite(value) or value <= 0
 
 
+def _unusable(q: Quantity | None, what: str) -> str | None:
+    """Why a quantity cannot be used, naming the actual problem. A value that was supplied and is out
+    of range is a different fact from one that was never supplied, and a reader acts on it differently."""
+    if q is None or any(v is None for v in (q.point, q.low, q.high)):
+        return f"no {what}; no default is substituted"
+    if not all(np.isfinite(v) for v in (q.point, q.low, q.high)):
+        return f"the {what} given is not a finite number (out of the range this tool can represent)"
+    if any(v <= 0 for v in (q.point, q.low, q.high)):
+        return f"the {what} given is zero or negative"
+    return None
+
+
 def invalid_reason(inp: MarginInput) -> str | None:
     """Why no margin can be computed, in the words a scientist would use; None if inputs are usable."""
     if inp.fu_medium is None:
         return "fraction unbound in the test medium is missing (use 1 for nominal = free)"
-    if inp.cmax is None or _bad(inp.cmax.point) or _bad(inp.cmax.low) or _bad(inp.cmax.high):
-        return "no usable clinical exposure (Cmax); no default is substituted"
-    if inp.pod is None or _bad(inp.pod.point) or _bad(inp.pod.low) or _bad(inp.pod.high):
-        return "no usable point of departure (missing, zero, negative or non-finite)"
+    reason = _unusable(inp.cmax, "usable clinical exposure (Cmax)") or _unusable(inp.pod, "point of departure")
+    if reason:
+        return reason
     for label, q in (("plasma", inp.fu_plasma), ("medium", inp.fu_medium)):
         if q is not None and (_bad(q.low) or _bad(q.high) or q.high > 1.0 or q.low > q.high):
             return f"fraction unbound in {label} must lie in (0, 1]; got {q.low:g}-{q.high:g}"
@@ -187,6 +203,10 @@ def result_line(name: str, basis: str, margin: float, band: tuple[float, float],
     conv = f"convention threshold {threshold.value:g} ({threshold.error_rates})"
     if verdict == NO_MARGIN:
         return f"{name}: no margin computed - the calculation did not produce a finite band."
+    if verdict == NO_VERDICT:
+        return (f"{head}. {band_text} No verdict against the {conv}: the band spans the assumed range of "
+                f"fraction unbound ({UNKNOWN_FU_RANGE[0]:g}-{UNKNOWN_FU_RANGE[1]:g}), so this comparison needs a "
+                f"measured fraction unbound, not more chips.")
     if verdict == "BELOW":
         return f"{head} - below the {conv}. {band_text}"
     if verdict.startswith("ABOVE"):
@@ -243,18 +263,23 @@ def compute(inp: MarginInput, threshold: Threshold, rng: np.random.Generator | N
     p = propagate(inp, rng, n)
     if not (np.isfinite(p.margin_total) and p.margin_total > 0):
         return _no_margin(inp, threshold, "the values are outside the numerically meaningful range")
+    smallest = min(m for m in (p.margin_total, p.margin_free) if np.isfinite(m))
+    if smallest < config.MARGIN_FLOOR:
+        return _no_margin(inp, threshold, f"the margin is smaller than {config.MARGIN_FLOOR:g}, below which this "
+                                          "tool reports no ratio and no equivalent dose")
 
     assumptions = list(inp.assumptions)
+    fu_unmeasured = threshold.basis == "free" and inp.fu_plasma is None
     if threshold.basis == "free":
         ref_margin, ref_band = p.margin_free, p.free_band
-        if inp.fu_plasma is None:
+        if fu_unmeasured:
             assumptions.append(
                 f"fraction unbound in plasma unknown: free band spans fu {UNKNOWN_FU_RANGE[0]:g}-{UNKNOWN_FU_RANGE[1]:g}"
             )
     else:
         ref_margin, ref_band = p.margin_total, p.total_band
 
-    verdict = classify(ref_band, threshold.value, inp.pod_censored)
+    verdict = NO_VERDICT if fu_unmeasured else classify(ref_band, threshold.value, inp.pod_censored)
     line = result_line(inp.name, threshold.basis, ref_margin, ref_band, threshold, verdict, inp.pod_censored)
 
     equivalent, equivalent_band = None, None

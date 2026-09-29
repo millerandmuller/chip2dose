@@ -12,6 +12,7 @@ from __future__ import annotations
 import argparse
 import importlib.util
 import json
+import math
 import sys
 import time
 import warnings
@@ -19,16 +20,16 @@ from pathlib import Path
 
 import pandas as pd
 
-from src import compound, config, figures, liver, load, margin, neural, pod, validate
+from src import compound, config, figures, liver, load, margin, neural, output, pod, validate
 
 HERO_PAIR = ("troglitazone", "pioglitazone")
 
 
 def write_csv(frame: pd.DataFrame, name: str) -> Path:
     path = config.RESULTS / name
-    path.parent.mkdir(parents=True, exist_ok=True)
-    frame.to_csv(path, index=False, float_format="%.6g", lineterminator="\n")
-    return path
+    return output.atomic_write(
+        path, lambda tmp: frame.to_csv(tmp, index=False, float_format="%.6g", lineterminator="\n")
+    )
 
 
 def public(result: dict) -> dict:
@@ -90,7 +91,7 @@ def run_validation() -> dict:
             write_csv(validate.coefficients(result["_table"], result["_y"]), "model_coefficients.csv")
             write_csv(validate.failure_cases(result), "failure_cases.csv")
         out[endpoint] = {"preregistered": public(result), "exploratory": public(exploratory)}
-    (config.RESULTS / "validation.json").write_text(json.dumps(out, indent=2, default=float) + "\n", encoding="utf-8")
+    output.atomic_write_text(config.RESULTS / "validation.json", json.dumps(out, indent=2, default=float) + "\n")
     return out
 
 
@@ -171,8 +172,10 @@ def run_readout(args: argparse.Namespace) -> int:
         result = margin.compute(inp, threshold)
         print(result.line)
     if args.dose_mg is not None and result.equivalent_dose_mg is None:
-        print(f"No equivalent daily dose: --dose-mg {args.dose_mg:g} is not a usable positive dose, "
-              "or no margin could be computed.")
+        if not (math.isfinite(args.dose_mg) and args.dose_mg > 0):
+            print(f"No equivalent daily dose: --dose-mg {args.dose_mg:g} is not a positive dose.")
+        else:
+            print("No equivalent daily dose: no margin was computed, for the reason given above.")
     elif result.equivalent_dose_mg is not None:
         lo, hi = result.equivalent_dose_band
         bound = ">" if args.censored else ""
@@ -232,7 +235,7 @@ def main(argv: list[str] | None = None) -> int:
         print("pre-registered validation (the slow step: minutes on a laptop) ..."); validation = run_validation()
     summary = summary_text(checks, liver_margins, pairs, neural_potency, neural_margins, validation)
     if validation:
-        (config.RESULTS / "summary.md").write_text(summary, encoding="utf-8")
+        output.atomic_write_text(config.RESULTS / "summary.md", summary)
     else:
         print("(--skip-validation: results/summary.md left unchanged)")
     print(summary)

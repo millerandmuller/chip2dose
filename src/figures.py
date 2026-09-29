@@ -16,7 +16,7 @@ import numpy as np  # noqa: E402
 import pandas as pd  # noqa: E402
 from sklearn.metrics import roc_curve  # noqa: E402
 
-from . import config, labels, margin  # noqa: E402
+from . import config, labels, margin, output  # noqa: E402
 
 VERMILLION, BLUE, GREEN, ORANGE, SKY, GREY, BLACK = (
     "#D55E00", "#0072B2", "#009E73", "#E69F00", "#56B4E9", "#7F7F7F", "#000000",
@@ -31,8 +31,8 @@ plt.rcParams.update({
 
 
 def _save(fig: plt.Figure, path: Path) -> Path:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(path)
+    # The temporary name carries no image extension, so the format is stated rather than inferred.
+    output.atomic_write(path, lambda tmp: fig.savefig(tmp, format=path.suffix.lstrip(".")))
     plt.close(fig)
     return path
 

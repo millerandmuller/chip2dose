@@ -1,5 +1,6 @@
 """Pair view, single-compound path and the no-score rule."""
 
+import pathlib
 import time
 
 import pandas as pd
@@ -178,3 +179,60 @@ def test_numerical_underflow_gives_no_margin():
     inp = margin.MarginInput("u", q(1e-320, "p"), q(1e300, "c"), q(0.1, "f"), q(1.0, "m"), dose_mg=5)
     result = margin.compute(inp, config.THRESHOLDS["liver_total_50"])
     assert result.verdict == margin.NO_MARGIN and result.equivalent_dose_mg is None
+
+
+def test_atomic_write_keeps_the_previous_result_when_a_write_is_interrupted(tmp_path):
+    import pytest
+    from src import output
+    target = tmp_path / "summary.md"
+    target.write_text("previous complete result\n")
+
+    def half_then_interrupt(tmp):
+        tmp.write_text("half a resu")
+        raise KeyboardInterrupt
+
+    with pytest.raises(KeyboardInterrupt):
+        output.atomic_write(target, half_then_interrupt)
+    assert target.read_text() == "previous complete result\n"
+    assert [p.name for p in tmp_path.iterdir()] == ["summary.md"]  # no .part file left behind
+
+
+def test_atomic_write_leaves_nothing_when_a_first_write_is_interrupted(tmp_path):
+    import pytest
+    from src import output
+    target = tmp_path / "sub" / "figure.png"
+
+    def die(tmp):
+        raise RuntimeError("interrupted")
+
+    with pytest.raises(RuntimeError):
+        output.atomic_write(target, die)
+    assert not target.exists()
+    assert list(target.parent.iterdir()) == []
+
+
+def test_atomic_write_actually_writes_when_it_is_not_interrupted(tmp_path):
+    from src import output
+    target = tmp_path / "deep" / "table.csv"
+    output.atomic_write_text(target, "a,b\n1,2\n")
+    assert target.read_text() == "a,b\n1,2\n"
+    assert [p.name for p in target.parent.iterdir()] == ["table.csv"]
+
+
+def test_every_result_writer_goes_through_the_atomic_helper(tmp_path, monkeypatch):
+    """Wiring, not source text: each writer is executed and must pass through the helper."""
+    import run_demo
+    from src import output
+    seen = []
+    real = output.atomic_write
+
+    def spy(path, write):
+        seen.append(pathlib.Path(path).name)
+        return real(path, write)
+
+    monkeypatch.setattr(output, "atomic_write", spy)
+    monkeypatch.setattr(config, "RESULTS", tmp_path)
+    run_demo.write_csv(pd.DataFrame({"a": [1]}), "probe.csv")
+    output.atomic_write_text(tmp_path / "probe.md", "text")
+    figures.pair_view(liver.margin_table(), "troglitazone", "pioglitazone", tmp_path / "probe.png")
+    assert seen == ["probe.csv", "probe.md", "probe.png"]

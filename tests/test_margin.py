@@ -1,6 +1,7 @@
 """Margin engine: arithmetic, bands, censoring, thresholds as conventions."""
 
 import numpy as np
+import pandas as pd
 import pytest
 
 from src import config, liver, margin, pod
@@ -137,3 +138,51 @@ def test_dose_relation_wording():
     assert "1.4x more than the point estimate" in margin.dose_relation(10, 5, 20, 14)
     assert "about the chip-derived dose" in margin.dose_relation(10, 5, 20, 10)
     assert "no comparison possible" in margin.dose_relation(10, 5, 20, 0)
+
+
+def test_subnormal_margin_earns_no_verdict_and_no_equivalent_dose():
+    inp = _input(pod_uM=1e-300, cmax=1e10)
+    inp.dose_mg = 100.0
+    result = margin.compute(inp, TOTAL_50)
+    assert result.verdict == margin.NO_MARGIN
+    assert f"smaller than {config.MARGIN_FLOOR:g}" in result.line
+    assert result.equivalent_dose_mg is None and result.equivalent_dose_band is None
+    assert "threshold" not in result.line and "0 mg" not in result.line
+
+
+def test_margin_floor_leaves_every_real_margin_untouched():
+    """The floor must not clip a real result: the smallest margin in any generated table is ~1.8e-4."""
+    smallest = min(pd.read_csv(config.RESULTS / "liver_margin_table.csv")["margin_total_band_low"].min(),
+                   pd.read_csv(config.RESULTS / "neural_margin_table.csv")["band_low"].min())
+    assert smallest > config.MARGIN_FLOOR * 1e6
+
+
+def test_out_of_range_value_is_not_reported_as_missing():
+    inp = _input()
+    inp.pod = margin.Quantity.exact(float("inf"), "user POD")
+    line = margin.compute(inp, TOTAL_50).line
+    assert "not a finite number" in line and "missing" not in line
+    inp.pod = None
+    assert "no point of departure" in margin.compute(inp, TOTAL_50).line
+
+
+def test_unmeasured_fraction_unbound_gives_a_band_but_no_free_verdict():
+    inp = _input()
+    inp.fu_plasma = None
+    result = margin.compute(inp, FREE_375)
+    assert result.verdict == margin.NO_VERDICT
+    assert "No verdict against the convention threshold 375" in result.line
+    assert "needs a measured fraction unbound" in result.line
+    # the band is still reported, and no threshold claim is attached to it
+    assert "Band:" in result.line
+    for claim in ("below the convention", "above the convention", "straddles", "needs more chips"):
+        assert claim not in result.line
+    # a measured fraction unbound still earns a verdict
+    assert margin.compute(_input(), FREE_375).verdict in {"BELOW", "ABOVE", "STRADDLES"}
+
+
+def test_total_basis_verdict_survives_an_unmeasured_fraction_unbound():
+    """The equivalent-dose path builds a total-basis input with no fu; it must still be classified."""
+    inp = _input()
+    inp.fu_plasma = None
+    assert margin.compute(inp, TOTAL_50).verdict == "BELOW"

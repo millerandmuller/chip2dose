@@ -63,6 +63,12 @@ MC_SAMPLES = 20_000
 MC_SEED = 20261010
 BAND_PERCENTILES = (5.0, 95.0)
 
+# Smallest margin this tool will report. Below it a ratio is no longer a toxicological statement,
+# and the arithmetic itself degenerates: products with a daily dose reach the subnormal range, where
+# precision is lost and an "equivalent dose" would print as a number without meaning. The smallest
+# margin in any real result here is 1.8e-4 (liver total band low), eight orders of magnitude above.
+MARGIN_FLOOR = 1e-12
+
 # Stated default uncertainty where a source gives only a point value.
 # Assumption: a single reported potency or fraction unbound is uncertain by a factor of 3
 # (log-uniform over [x/3, 3x]). Every use is counted in n_assumptions and named in the output.
