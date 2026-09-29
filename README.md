@@ -75,7 +75,10 @@ Other entry points (a few seconds each; every run first checks the input checksu
 split or any field of the analysis plan (endpoint, arms, features, comparisons, seeds) no longer matches that file.
 `validation/code_freeze.json` (added during review, after the evaluation) additionally fingerprints the 36 functions
 and constants that carry out the plan (feature construction, grouping, split, models, statistics, data loading), each
-verified identical to the pre-registration commit; a changed or redefined item is refused. Library code is not covered.
+verified identical to the pre-registration commit; a changed or redefined listed item is refused. Not covered: the
+checking code itself, import statements (a library function could be wrapped), the `Arm` class, reporting code and
+library code; the input files are checksummed by `run_demo.py` and `make data`, not inside the evaluation. The
+complete check is therefore a comparison against commit `a76e7e9` in the git history.
 
 - 220 oral drugs with a lowest in-vitro POD, a clinical Cmax and a DILIrank label (172 with DILI concern, 48 without).
 - Folds are grouped: matched toxic/non-toxic pairs, the same molecule, and structurally similar drugs
