@@ -115,3 +115,29 @@ def test_censored_readout_dose_is_a_lower_bound(capsys):
     import run_demo
     run_demo.main(["--readout", "12", "--cmax", "0.8", "--dose-mg", "100", "--censored"])
     assert "Chip-derived daily dose: >" in capsys.readouterr().out
+
+
+def test_assay_route_is_never_called_chip_data():
+    for drug in ("pioglitazone", "acetaminophen", "troglitazone"):
+        for line in compound.describe(drug):
+            if "Assay-derived" in line:
+                assert "chip-derived" not in line
+
+
+def test_doses_print_as_plain_numbers():
+    assert margin.fmt_dose(4177.4) == "4,177" and margin.fmt_dose(16.107) == "16.1"
+    text = "\n".join(compound.describe("acetaminophen"))
+    assert "e+0" not in text
+
+
+def test_readout_flags_without_readout_are_refused(capsys):
+    import run_demo
+    assert run_demo.main(["--compound", "troglitazone", "--cmax", "3"]) == 1
+    assert "only apply with --readout" in capsys.readouterr().out
+
+
+def test_numerical_underflow_gives_no_margin():
+    q = margin.Quantity.exact
+    inp = margin.MarginInput("u", q(1e-320, "p"), q(1e300, "c"), q(0.1, "f"), q(1.0, "m"), dose_mg=5)
+    result = margin.compute(inp, config.THRESHOLDS["liver_total_50"])
+    assert result.verdict == margin.NO_MARGIN and result.equivalent_dose_mg is None

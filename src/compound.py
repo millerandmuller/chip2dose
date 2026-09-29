@@ -20,6 +20,16 @@ def _rule_of_thumb_line(dose_mg: float, logp: float) -> str:
             f"{state} (daily dose {dose_mg:g} mg, logP {logp:.2f}). Shown as a comparison baseline, not a verdict.")
 
 
+def _chip_pod_text(row) -> str:
+    """The chip's point of departure in words: a value, a lower bound, or below the table's precision."""
+    if row["below_precision"]:
+        return (f"lowest toxic concentration below the source table's precision (printed as 0; "
+                f"< {liver.BELOW_PRECISION_MOS * row['cmax_total_uM']:.2g} uM total)")
+    prefix = ">" if row["censored"] else ""
+    return (f"lowest toxic concentration {prefix}{row['pod_uM']:.3g} uM total "
+            f"(two-donor range {row['pod_low_uM']:.3g}-{row['pod_high_uM']:.3g} uM)")
+
+
 def _chip_lines(key: str) -> list[str]:
     pods = pod.liverchip_pods().set_index("key")
     row = pods.loc[key].copy()
@@ -28,9 +38,7 @@ def _chip_lines(key: str) -> list[str]:
     free = margin.compute(inp, liver.REFERENCE_THRESHOLD)
     total = margin.compute(inp, liver.TOTAL_THRESHOLD)
     lines = [
-        "Liver-Chip (Ewart et al. 2022): "
-        f"lowest toxic concentration {'>' if row['censored'] else ''}{row['pod_uM']:.3g} uM total "
-        f"(two-donor range {row['pod_low_uM']:.3g}-{row['pod_high_uM']:.3g} uM); patient Cmax {row['cmax_total_uM']:.3g} uM.",
+        "Liver-Chip (Ewart et al. 2022): " + _chip_pod_text(row) + f"; patient Cmax {row['cmax_total_uM']:.3g} uM.",
         "  " + free.line,
         "  " + total.line,
     ]
@@ -39,12 +47,16 @@ def _chip_lines(key: str) -> list[str]:
         relation = margin.dose_relation(dose["equivalent_dose_mg"], dose["equivalent_dose_band_low"],
                                         dose["equivalent_dose_band_high"], dose["clinical_dose_mg"])
         lines.append(
-            f"  Chip-derived daily dose: the chip's toxic concentration is reached at {dose['equivalent_dose_mg']:,.3g} mg/day "
-            f"(band {dose['equivalent_dose_band_low']:,.3g}-{dose['equivalent_dose_band_high']:,.3g}) against "
-            f"{dose['clinical_dose_mg']:g} mg prescribed: {relation}. ({dose['dose_source']})"
+            f"  Chip-derived daily dose: the chip's toxic concentration is reached at "
+            f"{margin.fmt_dose(dose['equivalent_dose_mg'])} mg/day (band {margin.fmt_dose(dose['equivalent_dose_band_low'])}-"
+            f"{margin.fmt_dose(dose['equivalent_dose_band_high'])}) against {margin.fmt_dose(dose['clinical_dose_mg'])} mg "
+            f"prescribed: {relation}. ({dose['dose_source']})"
         )
     elif row["censored"]:
         lines.append("  No chip-derived daily dose: no toxicity was seen up to the highest tested concentration.")
+    else:
+        lines.append("  No chip-derived daily dose: no clinical dose with a Cmax measured at that dose is available "
+                     "for this drug in our inputs.")
     lines += [f"  assumption: {a}" for a in free.assumptions]
     return lines
 
@@ -80,10 +92,10 @@ def _literature_lines(key: str) -> list[str]:
         f"{margin.fmt_ratio(p.total_band[1])}; margin (free) {margin.fmt_ratio(p.margin_free)}, band "
         f"{margin.fmt_ratio(p.free_band[0])} to {margin.fmt_ratio(p.free_band[1])}.",
         ("  Given intravenously only: no oral equivalent daily dose and no oral dose rule of thumb." if row["iv_only"] else
-         f"  Assay-derived daily dose (Cmax would reach this POD): {equivalent:,.3g} mg, band "
-         f"{row['dose_mg'] * p.total_band[0]:,.3g}-{row['dose_mg'] * p.total_band[1]:,.3g} mg, against "
-         f"{row['dose_mg']:g} mg prescribed: "
-         f"{margin.dose_relation(equivalent, row['dose_mg'] * p.total_band[0], row['dose_mg'] * p.total_band[1], row['dose_mg'])} "
+         f"  Assay-derived daily dose (Cmax would reach this POD): {margin.fmt_dose(equivalent)} mg, band "
+         f"{margin.fmt_dose(row['dose_mg'] * p.total_band[0])}-{margin.fmt_dose(row['dose_mg'] * p.total_band[1])} mg, "
+         f"against {margin.fmt_dose(row['dose_mg'])} mg prescribed: "
+         f"{margin.dose_relation(equivalent, row['dose_mg'] * p.total_band[0], row['dose_mg'] * p.total_band[1], row['dose_mg'], label='assay-derived dose')} "
          "(linear-PK assumption)."),
         "  " + NO_LITERATURE_CONVENTION,
     ] + ([] if row["iv_only"] else ["  " + _rule_of_thumb_line(row["dose_mg"], row["logp"])]) \

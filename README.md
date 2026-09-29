@@ -14,7 +14,7 @@ The output is a ratio against patient exposure or a daily dose in mg, never a 0-
 ```bash
 git clone https://github.com/millerandmuller/chip2dose && cd chip2dose
 make            # creates .venv (Python 3.11), downloads + verifies data, writes results/
-make test       # 51 tests
+make test       # 57 tests
 ```
 
 A full `make` takes about 2-3 minutes on an idle laptop CPU and up to ~10 minutes on a busy one; the
@@ -73,6 +73,9 @@ Other entry points (a few seconds each; every run first checks the input checksu
 `validation/preregistration.json` and `validation/split.csv` were committed **before the first evaluation run**
 (commit `a76e7e9`; the evaluation results first appear in later commits). The code refuses to evaluate if either the
 split or any field of the analysis plan (endpoint, arms, features, comparisons, seeds) no longer matches that file.
+`validation/code_freeze.json` (added during review, after the evaluation) additionally fingerprints the 36 functions
+and constants that carry out the plan (feature construction, grouping, split, models, statistics, data loading), each
+verified identical to the pre-registration commit; a changed or redefined item is refused. Library code is not covered.
 
 - 220 oral drugs with a lowest in-vitro POD, a clinical Cmax and a DILIrank label (172 with DILI concern, 48 without).
 - Folds are grouped: matched toxic/non-toxic pairs, the same molecule, and structurally similar drugs

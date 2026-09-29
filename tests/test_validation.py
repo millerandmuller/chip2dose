@@ -83,3 +83,33 @@ def test_changed_frozen_code_is_refused(monkeypatch):
         assert "BOOTSTRAP_SEED" in str(exc)
     else:
         raise AssertionError("changed frozen code must be refused")
+
+
+def _fingerprints_of_modified_copy(tmp_path, monkeypatch, rel, old, new):
+    import shutil
+    from src import config
+    for sub in ("src",):
+        shutil.copytree(config.ROOT / sub, tmp_path / sub)
+    target = tmp_path / rel
+    text = target.read_text()
+    if old == new:  # append mode
+        target.write_text(text + new)
+    else:
+        assert old in text
+        target.write_text(text.replace(old, new))
+    monkeypatch.setattr(config, "ROOT", tmp_path)
+    return validate.code_fingerprints()
+
+
+def test_freeze_catches_a_changed_feature_construction(tmp_path, monkeypatch):
+    frozen = json.loads(validate.CODE_FREEZE.read_text())["fingerprints"]
+    prints = _fingerprints_of_modified_copy(tmp_path, monkeypatch, "src/validate.py",
+                                            "clip(lower=1e-4, upper=1.0)", "clip(lower=1e-1, upper=1.0)")
+    assert prints["src/validate.py:benchmark_table"] != frozen["src/validate.py:benchmark_table"]
+
+
+def test_freeze_catches_a_nested_redefinition(tmp_path, monkeypatch):
+    frozen = json.loads(validate.CODE_FREEZE.read_text())["fingerprints"]
+    redefinition = "\nif True:\n    def ci(values):\n        return (0.0, 1.0)\n"
+    prints = _fingerprints_of_modified_copy(tmp_path, monkeypatch, "src/validate.py", redefinition, redefinition)
+    assert prints["src/validate.py:ci"] != frozen["src/validate.py:ci"]

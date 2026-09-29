@@ -241,6 +241,8 @@ def compute(inp: MarginInput, threshold: Threshold, rng: np.random.Generator | N
         return _no_margin(inp, threshold, reason)
     rng = rng if rng is not None else np.random.default_rng(config.MC_SEED)
     p = propagate(inp, rng, n)
+    if not (np.isfinite(p.margin_total) and p.margin_total > 0):
+        return _no_margin(inp, threshold, "the values are outside the numerically meaningful range")
 
     assumptions = list(inp.assumptions)
     if threshold.basis == "free":
@@ -284,16 +286,28 @@ def _times(ratio: float) -> str:
     return f"{ratio:.1f}x" if ratio < 10 else f"{ratio:.0f}x"
 
 
-def dose_relation(dose: float, low: float, high: float, prescribed: float) -> str:
-    """Prescribed dose against the chip-derived dose AND its band; the band decides the wording."""
+def fmt_dose(mg: float) -> str:
+    """Plain numbers for doses, legible on a video frame: 16.1, 265, 4,180 (never 4.18e+03)."""
+    if not np.isfinite(mg):
+        return "n/a"
+    if mg >= 100:
+        return f"{mg:,.0f}"
+    if mg >= 1:
+        return f"{mg:.3g}"
+    return f"{mg:.2g}"
+
+
+def dose_relation(dose: float, low: float, high: float, prescribed: float, label: str = "chip-derived dose") -> str:
+    """Prescribed dose against a derived dose AND its band; the band decides the wording.
+    `label` names where the derived dose comes from, so assay data are never called chip data."""
     if not all(np.isfinite(v) and v > 0 for v in (dose, low, high, prescribed)):
         return "no comparison possible (missing or non-positive dose)"
     if prescribed > high:
-        return f"patients take {_times(prescribed / dose)} the chip-derived dose (above the whole band)"
+        return f"patients take {_times(prescribed / dose)} the {label} (above the whole band)"
     if prescribed < low:
-        return f"patients take {_times(dose / prescribed)} less than the chip-derived dose (below the whole band)"
-    if np.isclose(prescribed, dose, rtol=0.05):
-        return "patients take about the chip-derived dose (inside the band)"
+        return f"patients take {_times(dose / prescribed)} less than the {label} (below the whole band)"
+    if abs(prescribed - dose) <= 0.05 * dose:
+        return f"patients take about the {label} (inside the band)"
     side = "less than" if prescribed < dose else "more than"
     ratio = dose / prescribed if prescribed < dose else prescribed / dose
     return f"patients take {_times(ratio)} {side} the point estimate, but inside the band"

@@ -177,8 +177,9 @@ def run_readout(args: argparse.Namespace) -> int:
         lo, hi = result.equivalent_dose_band
         bound = ">" if args.censored else ""
         note = " (lower bound: no toxicity was seen up to the readout)" if args.censored else ""
-        print(f"Chip-derived daily dose: {bound}{result.equivalent_dose_mg:,.3g} mg (band {bound}{lo:,.3g}-{bound}{hi:,.3g} mg) "
-              f"against {args.dose_mg:g} mg, linear PK assumed{note}.")
+        print(f"Chip-derived daily dose: {bound}{margin.fmt_dose(result.equivalent_dose_mg)} mg "
+              f"(band {bound}{margin.fmt_dose(lo)} to {bound}{margin.fmt_dose(hi)} mg) "
+              f"against {margin.fmt_dose(args.dose_mg)} mg, linear PK assumed{note}.")
     for note in result.assumptions:
         print(f"  assumption: {note}")
     print("Thresholds are Liver-Chip conventions (Ewart et al. 2022); for another organ, read the margin, not the verdict.")
@@ -201,6 +202,12 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     warnings.simplefilter("ignore")
 
+    readout_only = {"--cmax": args.cmax, "--fu-plasma": args.fu_plasma, "--dose-mg": args.dose_mg,
+                    "--censored": args.censored or None}
+    stray = [flag for flag, value in readout_only.items() if value is not None]
+    if stray and args.readout is None:
+        print(f"{', '.join(stray)} only apply with --readout.")
+        return 1
     if args.compound is not None and not args.compound.strip():
         print("--compound needs a drug name.")
         return 1

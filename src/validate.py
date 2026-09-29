@@ -15,6 +15,7 @@ components of those links; a group never spans train and test.
 from __future__ import annotations
 
 import argparse
+import ast
 import hashlib
 import json
 import re
@@ -35,12 +36,19 @@ from . import config, load
 
 PREREG = config.VALIDATION / "preregistration.json"
 SPLIT = config.VALIDATION / "split.csv"
-# Added in review round 2: the pre-registration file describes the plan in words, but some of it
-# lives only in code. These fingerprints freeze that code at its state in the pre-registration
-# commit a76e7e9 (verified unchanged when the file was written).
+# Added in review rounds 2-3: the pre-registration file describes the plan in words, but the
+# plan is executed by code. These fingerprints freeze that code at its state in the
+# pre-registration commit a76e7e9 (each item verified byte-identical to that commit when added).
 CODE_FREEZE = config.VALIDATION / "code_freeze.json"
 FROZEN_CODE = {
-    "src/validate.py": ["BOOTSTRAP_SEED", "ARMS", "build_model", "out_of_fold_scores", "group_bootstrap", "ci"],
+    "src/validate.py": [
+        "N_FOLDS", "N_REPEATS", "SPLIT_SEED", "BOOTSTRAP", "BOOTSTRAP_SEED", "TANIMOTO_LINK", "LR_C",
+        "POSITIVE_WIDE", "POSITIVE_NARROW", "NEGATIVE", "POTENCY_FEATURES", "EXPOSURE_FEATURES",
+        "molecule_identity", "benchmark_table", "_union_find", "structural_groups", "make_split", "split_frame",
+        "ARMS", "PRIMARY", "SECONDARY", "build_model", "out_of_fold_scores", "group_bootstrap", "ci",
+        "outcome_case", "preregistration_document", "evaluate",
+    ],
+    "src/load.py": ["normalize_name", "SALT_WORDS", "_split_values", "GECI_IV_ONLY", "geci_benchmark", "liverchip_pairs"],
     "src/config.py": ["RULE_OF_THUMB_DOSE_MG", "RULE_OF_THUMB_LOGP"],
 }
 
@@ -324,21 +332,33 @@ def preregister(force: bool = False) -> dict:
     return doc
 
 
-def code_fingerprints() -> dict[str, str]:
-    """sha256 of the source text of each frozen constant or function."""
-    import ast
+def _defined_name(node) -> str | None:
+    if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+        return node.name
+    if isinstance(node, (ast.Assign, ast.AnnAssign)):
+        target = node.targets[0] if isinstance(node, ast.Assign) else node.target
+        return target.id if isinstance(target, ast.Name) else None
+    return None
 
+
+def code_fingerprints() -> dict[str, str]:
+    """sha256 of the source text of each frozen constant or function. A frozen name defined more
+    than once anywhere in its module (e.g. a later redefinition inside a block) gets a fingerprint
+    that cannot match, because the last definition would win at runtime."""
     prints = {}
     for rel, names in FROZEN_CODE.items():
         source = (config.ROOT / rel).read_text(encoding="utf-8")
-        for node in ast.parse(source).body:
-            name = None
-            if isinstance(node, ast.Assign) and isinstance(node.targets[0], ast.Name):
-                name = node.targets[0].id
-            elif isinstance(node, ast.FunctionDef):
-                name = node.name
+        tree = ast.parse(source)
+        counts: dict[str, int] = {}
+        for node in ast.walk(tree):
+            name = _defined_name(node)
             if name in names:
-                prints[f"{rel}:{name}"] = sha256_text(ast.get_source_segment(source, node))
+                counts[name] = counts.get(name, 0) + 1
+        for node in tree.body:
+            name = _defined_name(node)
+            if name in names:
+                digest = sha256_text(ast.get_source_segment(source, node))
+                prints[f"{rel}:{name}"] = digest if counts.get(name) == 1 else f"redefined {counts[name]} times"
     return prints
 
 
