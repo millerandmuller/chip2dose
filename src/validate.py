@@ -371,6 +371,52 @@ def evaluate(endpoint: str = "wide") -> dict:
     }
 
 
+# Added after the first evaluation run (2026-09-29), NOT pre-registered. Question it answers:
+# how much of the exposure-aware advantage comes from exposure alone, without any chip data?
+EXPLORATORY_ARMS = [
+    Arm("exploratory: total Cmax alone", "score", score_column="log_cmax", sign=1.0),
+    Arm("exploratory: daily dose alone", "score", score_column="log_dose", sign=1.0),
+    Arm("exploratory: free Cmax alone", "score", score_column="log_free_cmax", sign=1.0),
+]
+EXPLORATORY_COMPARISONS = [
+    ("margin alone (total)", "exploratory: total Cmax alone"),
+    ("margin alone (free)", "exploratory: free Cmax alone"),
+    ("exploratory: total Cmax alone", "potency alone"),
+]
+
+
+def evaluate_exploratory(endpoint: str = "wide") -> dict:
+    """Exposure-only baselines on the same drugs and bootstrap as the pre-registered analysis."""
+    table = benchmark_table()
+    frame = load_verified_split(table)
+    table = table.assign(log_free_cmax=table["log_cmax"] + table["log_fu"])
+    if endpoint == "narrow":
+        keep = table["y_narrow"] >= 0
+        table, frame = table[keep].reset_index(drop=True), frame[keep].reset_index(drop=True)
+        y = table["y_narrow"].to_numpy()
+    else:
+        y = table["y_wide"].to_numpy()
+    arms = [a for a in ARMS if a.kind == "score"] + EXPLORATORY_ARMS
+    folds = frame[[c for c in frame.columns if c.startswith("repeat_")]]
+    scores = {arm.name: out_of_fold_scores(table, y, folds, arm) for arm in arms}
+    boot = group_bootstrap(y, scores, frame["group"].to_numpy(), EXPLORATORY_COMPARISONS)
+    rows = []
+    for a, b in EXPLORATORY_COMPARISONS:
+        low, high = ci(boot["diffs"][(a, b)])
+        rows.append({
+            "comparison": f"{a} minus {b}",
+            "delta_auc": roc_auc_score(y, scores[a]) - roc_auc_score(y, scores[b]),
+            "ci_low": low, "ci_high": high,
+            "share_of_draws_leq_0": float(np.mean(np.array(boot["diffs"][(a, b)]) <= 0)),
+        })
+    aucs = []
+    for arm in EXPLORATORY_ARMS:
+        low, high = ci(boot["aucs"][arm.name])
+        aucs.append({"arm": arm.name, "auc": roc_auc_score(y, scores[arm.name]), "ci_low": low, "ci_high": high})
+    return {"endpoint": endpoint, "status": "exploratory, added after the first evaluation run; not pre-registered",
+            "arms": aucs, "comparisons": rows, "_scores": scores, "_y": y}
+
+
 def coefficients(table: pd.DataFrame, y: np.ndarray) -> pd.DataFrame:
     """Standardised LR coefficients of the exposure-aware model fitted on all drugs (interpretation only)."""
     model = build_model("lr")

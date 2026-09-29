@@ -265,6 +265,7 @@ def mea_potency() -> pd.DataFrame:
     table = pd.read_excel(config.EPA_MEA, sheet_name="MEA_data")
     return table.rename(
         columns={
+            "name": "entry_name",
             "PREFERRED_NAME": "name",
             "Common.name/Abbreviation": "common_name",
             "Casrn": "casrn",
