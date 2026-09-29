@@ -144,7 +144,28 @@ grouping and the split hash. Then what the freeze does and does not cover, from 
 
 ## 8. Failures, limitations and bias *(outline)*
 
-Leads with the findings that work against us, from `README.md` "Findings we report against ourselves":
+**First: part of the headline is range, and we measured how much** (exploratory, post-hoc, run once on
+2026-09-29 after the pre-registered results were read; `results/exploratory_range_matched.csv`). Geci et al.
+warn that Cmax looks predictive in their integrated dataset partly because of a range artefact: in-vitro
+potency is compressed by test-concentration ranges while Cmax spreads wider. On our 220 drugs the lowest POD
+spans 5.22 orders of magnitude and total Cmax 7.07 (5th-95th percentile: 2.44 against 4.45). Their "4 against 7"
+describes their dataset. Ours has the same shape, less extreme. Restricting to the 195 drugs whose Cmax lies
+inside the observed POD range, and refitting both primary arms inside that subset on the pre-registered folds,
+the primary difference falls from +0.243 [+0.152, +0.340] to **+0.162 [+0.058, +0.275]**. It shrinks by about a
+third, and its interval still excludes zero (exposure-aware LR 0.839 [0.742, 0.917], potency-only LR 0.677
+[0.562, 0.774]; 165 with concern, 30 without). Which drugs the restriction removes decides how to read this.
+All 25 lie below the lowest POD, none above the highest: 18 without DILI concern and 7 with concern. On the
+full-set out-of-fold scores, at the Youden cut used for `failure_cases.csv` (chosen in-sample, so indicative
+only), the exposure-aware model calls all 18 correctly and misses 6 of the 7. The restriction therefore mostly
+takes away drugs the exposure-aware arm gets right, and so it penalises that arm. It is not a flattering subset.
+Two limits on the check: the boundary is the observed POD range, which is derived rather than chosen but is
+still one of several possible definitions; and a direct test of truncation was not possible. No POD in the
+benchmark source is written as a bound (`censored_pod_entries() == 0`), because Geci et al. kept only compounds
+with a reported potency value, so restricting to uncensored PODs keeps all 220 drugs. That is a fact about how
+the benchmark was built. It means drugs that were inactive at every tested concentration are absent by
+construction, and potency's weakness here is partly a property of the benchmark and not only of potency.
+
+Then leads with the findings that work against us, from `README.md` "Findings we report against ourselves":
 mifepristone and the other cases in `results/failure_cases.csv`; trovafloxacin/levofloxacin as inconclusive;
 pioglitazone's BSEP-driven literature POD ranking it against the clinic; the assay-count confound (AUC 0.66);
 the 47 cross-group pairs between Tanimoto 0.3 and 0.4. Then the standing limitations: no clinical or

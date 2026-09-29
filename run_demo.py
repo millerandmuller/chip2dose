@@ -94,8 +94,28 @@ def run_validation() -> dict:
             write_csv(validate.coefficients(result["_table"], result["_y"]), "model_coefficients.csv")
             write_csv(validate.failure_cases(result), "failure_cases.csv")
         out[endpoint] = {"preregistered": public(result), "exploratory": public(exploratory)}
+    range_matched = validate.evaluate_range_matched()
+    write_csv(pd.DataFrame(range_matched["arms"] + range_matched["comparisons"]), "exploratory_range_matched.csv")
+    out["wide"]["exploratory_range_matched"] = range_matched
     output.atomic_write_text(config.RESULTS / "validation.json", json.dumps(out, indent=2, default=float) + "\n")
     return out
+
+
+def range_matched_lines(rm: dict) -> list[str]:
+    """The post-hoc range check, labelled as such on every line it adds to the summary."""
+    spans = rm["spans_full_set"]
+    lines = [f"- Exploratory, post-hoc ({rm['status']}):",
+             f"  - observed span on all 220 drugs: lowest POD {spans['log_pod']['span_orders']:.2f} orders of magnitude "
+             f"(5th-95th percentile {spans['log_pod']['span_p5_p95_orders']:.2f}), total Cmax "
+             f"{spans['log_cmax']['span_orders']:.2f} (5th-95th percentile {spans['log_cmax']['span_p5_p95_orders']:.2f})",
+             f"  - censored POD entries in the source file: {rm['censored_pod_entries_in_source']} ({rm['censoring_note']})",
+             f"  - range-matched subset ({rm['subset']}): n = {rm['n']} ({rm['n_positive']} concern, "
+             f"{rm['n_negative']} no concern, {rm['n_groups']} groups); {rm['n_removed']} removed:"]
+    lines += [f"    - {t['tail']}, {t['label']}: {t['n']}" for t in rm["removed_tails"]]
+    lines += [f"  - {a['arm']}: AUC {a['auc']:.3f} [{a['ci_low']:.3f}, {a['ci_high']:.3f}]" for a in rm["arms"]]
+    lines += [f"  - {c['comparison']}: {c['delta_auc']:+.3f} [{c['ci_low']:+.3f}, {c['ci_high']:+.3f}]"
+              for c in rm["comparisons"]]
+    return lines
 
 
 def summary_text(checks, liver_margins, pairs, neural_potency, neural_margins, neural_coverage, validation) -> str:
@@ -131,6 +151,8 @@ def summary_text(checks, liver_margins, pairs, neural_potency, neural_margins, n
             lines += [f"  - {a['arm']}: AUC {a['auc']:.3f} [{a['ci_low']:.3f}, {a['ci_high']:.3f}]" for a in ex["arms"]]
             lines += [f"  - {c['comparison']}: {c['delta_auc']:+.3f} [{c['ci_low']:+.3f}, {c['ci_high']:+.3f}]"
                       for c in ex["comparisons"]]
+            if "exploratory_range_matched" in blocks:
+                lines += range_matched_lines(blocks["exploratory_range_matched"])
             lines.append("")
     lines += ["## Neural network-formation chip (EPA MEA)", "",
               f"- {len(neural_potency)} chemicals, {int(neural_potency['active'].sum())} active; "

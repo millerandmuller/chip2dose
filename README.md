@@ -108,6 +108,18 @@ benchmark is a pre-registered evaluation of their ratio — the set of drugs and
 first evaluation, a structure-grouped bootstrap interval, and a paired comparison against potency alone on identical
 drugs — together with the learned, out-of-fold arms and the dose layer that sits on top of them.
 
+The same authors warn that Cmax looks predictive in their dataset partly because of range: in-vitro potency is
+compressed by test-concentration ranges while Cmax spreads wider. On our 220 drugs the lowest POD spans 5.22 orders of
+magnitude and total Cmax 7.07. We tested that warning in one exploratory, post-hoc run (added after the pre-registered
+results were read; `results/exploratory_range_matched.csv`). Keeping only the drugs whose Cmax lies inside the observed
+POD range, with both primary models refit on those drugs, the primary difference is **+0.162 [+0.058, +0.275] on
+n = 195**, against +0.243 on all 220. That number cannot be read without knowing which drugs left. All 25 removed drugs
+sit below the lowest POD, none above the highest. On the full-set out-of-fold scores the exposure-aware arm gets 19 of
+those 25 right: all 18 without DILI concern, and 1 of the 7 with concern, missing the other 6. The restriction
+therefore mostly removes drugs the exposure-aware arm gets right, and so it works against that arm: +0.162 is the
+conservative end of the estimate, not a corrected one. What the benchmark cannot show is truncation itself. No POD in
+it is written as a bound, because the authors kept only compounds with a reported potency value.
+
 ### The published ratio, on a pre-registered set and with an interval
 
 Geci et al. report two AUCs for their ratio, one per class definition. We reproduce both class definitions exactly, so

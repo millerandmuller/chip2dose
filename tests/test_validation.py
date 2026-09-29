@@ -113,3 +113,33 @@ def test_freeze_catches_a_nested_redefinition(tmp_path, monkeypatch):
     redefinition = "\nif True:\n    def ci(values):\n        return (0.0, 1.0)\n"
     prints = _fingerprints_of_modified_copy(tmp_path, monkeypatch, "src/validate.py", redefinition, redefinition)
     assert prints["src/validate.py:ci"] != frozen["src/validate.py:ci"]
+
+
+# Post-hoc range check (2026-09-29, run once). Literals on purpose: these are the numbers the report cites,
+# so a data or code change must turn the suite red rather than move a published number quietly.
+def test_range_check_counts_and_spans_are_pinned():
+    table = validate.benchmark_table()
+    spans = validate.log_spans(table)
+    assert round(spans["log_pod"]["span_orders"], 2) == 5.22
+    assert round(spans["log_cmax"]["span_orders"], 2) == 7.07
+    keep = validate.range_matched_mask(table)
+    assert int(keep.sum()) == 195
+    tails = {(t["tail"], t["label"]): t["n"] for t in validate.removed_tails(table, keep)}
+    assert tails == {("Cmax below the lowest POD", "concern"): 7, ("Cmax below the lowest POD", "no concern"): 18}
+
+
+def test_no_pod_in_the_benchmark_source_is_censored():
+    """Why the uncensored-only restriction was a no-op: the source file writes no POD as a bound."""
+    assert validate.censored_pod_entries() == 0
+
+
+def test_range_check_is_labelled_post_hoc_and_never_primary():
+    result = validate.evaluate_range_matched()
+    assert "post-hoc" in result["status"] and "not pre-registered" in result["status"]
+    rows = result["arms"] + result["comparisons"]
+    assert all(r.get("arm", r.get("comparison")).startswith(validate.RANGE_MATCHED_PREFIX) for r in rows)
+    assert all("primary" not in r for r in result["comparisons"])
+    (comparison,) = result["comparisons"]
+    assert (result["n"], result["n_positive"], result["n_negative"]) == (195, 165, 30)
+    assert round(comparison["delta_auc"], 3) == 0.162
+    assert (round(comparison["ci_low"], 3), round(comparison["ci_high"], 3)) == (0.058, 0.275)

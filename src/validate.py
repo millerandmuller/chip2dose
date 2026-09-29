@@ -473,6 +473,89 @@ def evaluate_exploratory(endpoint: str = "wide") -> dict:
             "arms": aucs, "comparisons": rows, "_scores": scores, "_y": y}
 
 
+# Added 2026-09-29, after the pre-registered results had been read: exploratory and post-hoc, NOT
+# pre-registered, and run once. Question it answers: Geci et al. attribute part of Cmax's predictive power
+# to a range artefact in the integrated dataset (in-vitro potency compressed by test-concentration ranges,
+# Cmax spread wider). Does the primary difference survive when the drugs whose Cmax lies outside the
+# observed POD range are removed? The boundary is the observed POD range itself, not a chosen constant.
+RANGE_MATCHED_STATUS = ("exploratory, post-hoc: added 2026-09-29 after the pre-registered results were read; "
+                        "not pre-registered; run once")
+RANGE_MATCHED_PREFIX = "exploratory, post-hoc (range-matched)"
+
+
+def log_spans(table: pd.DataFrame) -> dict:
+    """Observed spread, in orders of magnitude, of lowest POD and total Cmax (full range and 5th-95th)."""
+    spans = {}
+    for column in ("log_pod", "log_cmax"):
+        values = table[column]
+        spans[column] = {"min": float(values.min()), "max": float(values.max()),
+                         "span_orders": float(values.max() - values.min()),
+                         "span_p5_p95_orders": float(values.quantile(0.95) - values.quantile(0.05))}
+    return spans
+
+
+def range_matched_mask(table: pd.DataFrame) -> pd.Series:
+    """True for drugs whose total Cmax lies inside the observed range of lowest POD in the same table."""
+    return table["log_cmax"].between(table["log_pod"].min(), table["log_pod"].max())
+
+
+def removed_tails(table: pd.DataFrame, keep: pd.Series) -> list[dict]:
+    """Which side of the POD range each removed drug's Cmax falls on, by clinical label (wide endpoint)."""
+    removed = table[~keep]
+    side = np.where(removed["log_cmax"] > table["log_pod"].max(), "Cmax above the highest POD",
+                    "Cmax below the lowest POD")
+    label = np.where(removed["y_wide"] == 1, "concern", "no concern")
+    counts = pd.crosstab(side, label)
+    return [{"tail": tail, "label": lab, "n": int(counts.loc[tail, lab]) if lab in counts.columns else 0}
+            for tail in counts.index for lab in ("concern", "no concern")]
+
+
+def censored_pod_entries() -> int:
+    """Raw PODValues entries in the Geci file written as a bound ('<x' or '>x') rather than a number."""
+    raw = pd.read_excel(config.GECI_LITERATURE, usecols=["PODValues"])["PODValues"].dropna().astype(str)
+    return int(raw.str.split(";").explode().str.strip().str.match(r"^[<>]").sum())
+
+
+def evaluate_range_matched() -> dict:
+    """The pre-registered primary pair, refit on the range-matched subset (wide endpoint only).
+
+    Same fold assignment restricted to the kept rows, same models, same group bootstrap and seed. The two
+    LR arms are refit inside the subset, so no model learns from a drug outside the POD range."""
+    table = benchmark_table()
+    frame = load_verified_split(table)
+    spans = log_spans(table)
+    keep = range_matched_mask(table)
+    tails = removed_tails(table, keep)
+    sub, sub_frame = table[keep].reset_index(drop=True), frame[keep].reset_index(drop=True)
+    y = sub["y_wide"].to_numpy()
+    folds = sub_frame[[c for c in sub_frame.columns if c.startswith("repeat_")]]
+    groups = sub_frame["group"].to_numpy()
+    arms = [arm for arm in ARMS if arm.name in PRIMARY]
+    scores = {arm.name: out_of_fold_scores(sub, y, folds, arm) for arm in arms}
+    boot = group_bootstrap(y, scores, groups, [PRIMARY])
+    a, b = PRIMARY
+    low, high = ci(boot["diffs"][PRIMARY])
+    arm_rows = []
+    for arm in arms:
+        a_low, a_high = ci(boot["aucs"][arm.name])
+        arm_rows.append({"arm": f"{RANGE_MATCHED_PREFIX}: {arm.name}", "auc": roc_auc_score(y, scores[arm.name]),
+                         "ci_low": a_low, "ci_high": a_high})
+    comparison = {"comparison": f"{RANGE_MATCHED_PREFIX}: {a} minus {b}",
+                  "delta_auc": roc_auc_score(y, scores[a]) - roc_auc_score(y, scores[b]),
+                  "ci_low": low, "ci_high": high,
+                  "share_of_draws_leq_0": float(np.mean(np.array(boot["diffs"][PRIMARY]) <= 0))}
+    return {"endpoint": "wide", "status": RANGE_MATCHED_STATUS,
+            "subset": "total Cmax inside the observed lowest-POD range of the 220-drug set",
+            "n": int(len(y)), "n_positive": int(y.sum()), "n_negative": int((y == 0).sum()),
+            "n_groups": int(len(np.unique(groups))), "n_removed": int((~keep).sum()),
+            "removed_tails": tails, "spans_full_set": spans,
+            "censored_pod_entries_in_source": censored_pod_entries(),
+            "censoring_note": "no lowest POD in the benchmark is a bound: Geci et al. kept only compounds with a "
+                              "reported potency value, so a restriction to uncensored PODs keeps every drug and cannot "
+                              "test truncation at the top of the test-concentration range",
+            "arms": arm_rows, "comparisons": [comparison]}
+
+
 def coefficients(table: pd.DataFrame, y: np.ndarray) -> pd.DataFrame:
     """Standardised LR coefficients of the exposure-aware model fitted on all drugs (interpretation only)."""
     model = build_model("lr")

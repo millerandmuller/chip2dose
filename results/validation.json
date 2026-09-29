@@ -146,6 +146,67 @@
           "share_of_draws_leq_0": 0.002
         }
       ]
+    },
+    "exploratory_range_matched": {
+      "endpoint": "wide",
+      "status": "exploratory, post-hoc: added 2026-09-29 after the pre-registered results were read; not pre-registered; run once",
+      "subset": "total Cmax inside the observed lowest-POD range of the 220-drug set",
+      "n": 195,
+      "n_positive": 165,
+      "n_negative": 30,
+      "n_groups": 158,
+      "n_removed": 25,
+      "removed_tails": [
+        {
+          "tail": "Cmax below the lowest POD",
+          "label": "concern",
+          "n": 7
+        },
+        {
+          "tail": "Cmax below the lowest POD",
+          "label": "no concern",
+          "n": 18
+        }
+      ],
+      "spans_full_set": {
+        "log_pod": {
+          "min": -1.5178706148180836,
+          "max": 3.7060370535148217,
+          "span_orders": 5.223907668332905,
+          "span_p5_p95_orders": 2.4425462100215243
+        },
+        "log_cmax": {
+          "min": -3.920788328471119,
+          "max": 3.1526472783760617,
+          "span_orders": 7.07343560684718,
+          "span_p5_p95_orders": 4.4516964245286585
+        }
+      },
+      "censored_pod_entries_in_source": 0,
+      "censoring_note": "no lowest POD in the benchmark is a bound: Geci et al. kept only compounds with a reported potency value, so a restriction to uncensored PODs keeps every drug and cannot test truncation at the top of the test-concentration range",
+      "arms": [
+        {
+          "arm": "exploratory, post-hoc (range-matched): learned, potency-only features (LR)",
+          "auc": 0.6767676767676768,
+          "ci_low": 0.5619187786089092,
+          "ci_high": 0.7742693625415282
+        },
+        {
+          "arm": "exploratory, post-hoc (range-matched): learned, exposure-aware features (LR)",
+          "auc": 0.8387878787878787,
+          "ci_low": 0.7417277309384165,
+          "ci_high": 0.9169154761904761
+        }
+      ],
+      "comparisons": [
+        {
+          "comparison": "exploratory, post-hoc (range-matched): learned, exposure-aware features (LR) minus learned, potency-only features (LR)",
+          "delta_auc": 0.16202020202020195,
+          "ci_low": 0.05766464826106588,
+          "ci_high": 0.27533035243865706,
+          "share_of_draws_leq_0": 0.0025
+        }
+      ]
     }
   },
   "narrow": {

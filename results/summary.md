@@ -42,6 +42,15 @@
   - margin alone (total) minus exploratory: total Cmax alone: +0.044 [+0.003, +0.090]
   - margin alone (free) minus exploratory: free Cmax alone: +0.078 [+0.026, +0.132]
   - exploratory: total Cmax alone minus potency alone: +0.198 [+0.074, +0.328]
+- Exploratory, post-hoc (exploratory, post-hoc: added 2026-09-29 after the pre-registered results were read; not pre-registered; run once):
+  - observed span on all 220 drugs: lowest POD 5.22 orders of magnitude (5th-95th percentile 2.44), total Cmax 7.07 (5th-95th percentile 4.45)
+  - censored POD entries in the source file: 0 (no lowest POD in the benchmark is a bound: Geci et al. kept only compounds with a reported potency value, so a restriction to uncensored PODs keeps every drug and cannot test truncation at the top of the test-concentration range)
+  - range-matched subset (total Cmax inside the observed lowest-POD range of the 220-drug set): n = 195 (165 concern, 30 no concern, 158 groups); 25 removed:
+    - Cmax below the lowest POD, concern: 7
+    - Cmax below the lowest POD, no concern: 18
+  - exploratory, post-hoc (range-matched): learned, potency-only features (LR): AUC 0.677 [0.562, 0.774]
+  - exploratory, post-hoc (range-matched): learned, exposure-aware features (LR): AUC 0.839 [0.742, 0.917]
+  - exploratory, post-hoc (range-matched): learned, exposure-aware features (LR) minus learned, potency-only features (LR): +0.162 [+0.058, +0.275]
 
 ### Endpoint: narrow (n = 152: 104 concern, 48 no concern)
 - potency alone: AUC 0.664 [0.563, 0.754]

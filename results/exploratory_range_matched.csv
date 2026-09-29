@@ -1,0 +1,4 @@
+arm,auc,ci_low,ci_high,comparison,delta_auc,share_of_draws_leq_0
+"exploratory, post-hoc (range-matched): learned, potency-only features (LR)",0.676768,0.561919,0.774269,,,
+"exploratory, post-hoc (range-matched): learned, exposure-aware features (LR)",0.838788,0.741728,0.916915,,,
+,,0.0576646,0.27533,"exploratory, post-hoc (range-matched): learned, exposure-aware features (LR) minus learned, potency-only features (LR)",0.16202,0.0025
