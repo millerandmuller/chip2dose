@@ -297,14 +297,27 @@ def fmt_dose(mg: float) -> str:
     return f"{mg:.2g}"
 
 
+def dose_position(dose: float, low: float, high: float, prescribed: float) -> str | None:
+    """Where the prescribed dose falls against a derived dose's band. One named fact, so a sentence
+    and any note comparing two derived doses can never disagree about it. None = not comparable."""
+    if not all(np.isfinite(v) and v > 0 for v in (dose, low, high, prescribed)):
+        return None
+    if prescribed > high:
+        return "above the whole band"
+    if prescribed < low:
+        return "below the whole band"
+    return "inside the band"
+
+
 def dose_relation(dose: float, low: float, high: float, prescribed: float, label: str = "chip-derived dose") -> str:
     """Prescribed dose against a derived dose AND its band; the band decides the wording.
     `label` names where the derived dose comes from, so assay data are never called chip data."""
-    if not all(np.isfinite(v) and v > 0 for v in (dose, low, high, prescribed)):
+    position = dose_position(dose, low, high, prescribed)
+    if position is None:
         return "no comparison possible (missing or non-positive dose)"
-    if prescribed > high:
+    if position == "above the whole band":
         return f"patients take {_times(prescribed / dose)} the {label} (above the whole band)"
-    if prescribed < low:
+    if position == "below the whole band":
         return f"patients take {_times(dose / prescribed)} less than the {label} (below the whole band)"
     if abs(prescribed - dose) <= 0.05 * dose:
         return f"patients take about the {label} (inside the band)"

@@ -117,6 +117,43 @@ def test_censored_readout_dose_is_a_lower_bound(capsys):
     assert "Chip-derived daily dose: >" in capsys.readouterr().out
 
 
+def test_two_cmax_values_for_one_drug_are_named_with_their_sources():
+    text = "\n".join(compound.describe("troglitazone"))
+    assert "Two published measurements of one quantity, total plasma Cmax: 6.08 uM" in text
+    assert "6.79 uM at 600 mg" in text
+    assert "Ewart et al. 2022" in text and "Geci et al. 2026" in text
+
+
+def test_no_cmax_note_when_the_two_sources_print_the_same_value():
+    """No drug in the current inputs agrees to three significant figures (closest: clozapine, 1.06-fold),
+    so the agreeing branch is exercised directly."""
+    chip = {"cmax_total_uM": 6.08, "pod_uM": 0.182, "dose_position": "above the whole band"}
+    assert compound._cmax_note(chip, 6.0799, 600) == []
+    assert compound._cmax_note(chip, 6.79, 600) != []
+
+
+def test_contradicting_dose_sentences_carry_the_reason_between_them():
+    for drug in ("troglitazone", "pioglitazone"):
+        lines = compound.describe(drug)
+        assay = next(i for i, l in enumerate(lines) if "Assay-derived daily dose" in l)
+        bridge = lines[assay + 1]
+        assert "different assay, different point of departure" in bridge
+        assert "chip-derived band" in bridge and "assay-derived band" in bridge
+
+
+def test_no_dose_note_when_both_bands_place_the_prescribed_dose_alike():
+    chip = {"cmax_total_uM": 3.0, "pod_uM": 8.4, "dose_position": "above the whole band"}
+    assert compound._dose_note(chip, "above the whole band", 0.3, "medianBSEPIC50") == []
+    assert compound._dose_note(chip, "inside the band", 0.3, "medianBSEPIC50") != []
+    assert compound._dose_note({**chip, "dose_position": None}, "inside the band", 0.3, "x") == []
+
+
+def test_compound_without_a_literature_block_carries_no_cross_source_notes():
+    text = "\n".join(compound.describe("olanzapine"))
+    assert "different data, not the chip" not in text
+    assert "Two published measurements" not in text and "answer different questions" not in text
+
+
 def test_assay_route_is_never_called_chip_data():
     for drug in ("pioglitazone", "acetaminophen", "troglitazone"):
         for line in compound.describe(drug):
