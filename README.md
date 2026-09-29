@@ -14,7 +14,7 @@ The output is a ratio against patient exposure or a daily dose in mg, never a 0-
 ```bash
 git clone https://github.com/millerandmuller/chip2dose && cd chip2dose
 make            # creates .venv (Python 3.11), downloads + verifies data, writes results/
-make test       # 42 tests
+make test       # 44 tests
 ```
 
 A full `make` takes about 2-3 minutes on an idle laptop CPU and up to ~10 minutes on a busy one; the
@@ -38,6 +38,7 @@ Other entry points (a few seconds each; every run first checks the input checksu
 | File | Content |
 |---|---|
 | `results/summary.md` | every headline number, generated |
+| `results/dose_view.png` | the output in real units for troglitazone / pioglitazone: the daily dose at which the chip's toxic concentration is reached, with band, next to the prescribed dose. An illustration of the output; potency alone already ranks this pair correctly, and the comparative evidence is the benchmark |
 | `results/pair_view.png`, `results/pairs/` | potency, patient exposure and margin for each of the 7 matched toxic/non-toxic pairs |
 | `results/liver_margin_table.csv`, `liver_margins.png` | 27 Liver-Chip drugs: total and free margin, band, verdict against the published convention, equivalent daily dose where a dose-matched Cmax exists, assumptions |
 | `results/roc.png`, `paired_difference.png`, `validation_*.csv` | the pre-registered validation on 220 drugs |
@@ -59,8 +60,8 @@ Other entry points (a few seconds each; every run first checks the input checksu
    the 5th-95th percentile of 20,000 Monte-Carlo draws.
 4. **Equivalent daily dose.** Where a clinical dose and the Cmax measured at that dose come from the same source, the
    margin is turned into the daily dose at which Cmax would reach the chip's toxic concentration, assuming linear
-   pharmacokinetics. Troglitazone: about 16 mg/day (band 16-62) against 600 mg prescribed; pioglitazone: about 90 mg/day
-   (band 40-291) against 45 mg.
+   pharmacokinetics. Troglitazone: about 16 mg/day (band 16-62) against 600 mg prescribed, above the whole band;
+   pioglitazone: about 90 mg/day (band 40-291) against 45 mg, below the point estimate but inside the band.
 5. **Verdict.** Against a *convention* with its error rates printed next to it: free margin 375 (Liver-Chip, sensitivity
    87 %, specificity 100 %) or total margin 50 (sensitivity 80 %, specificity 100 %). A band that straddles the threshold
    is reported as such. A POD where no toxicity was seen is a lower bound and is never treated as a number. Unusable
@@ -100,6 +101,9 @@ against exposure, and most of the signal is the exposure.
   published matched pair, and the free margin orders them like the clinic (1.4x vs 94x). But their chip potencies
   already differ 46-fold, and both fall below the convention threshold. No matched pair in the Liver-Chip set shows
   near-identical potency: the non-toxic partners are mostly censored (no toxicity up to the highest tested concentration).
+  Six of the seven pairs cannot be compared on potency at all for that reason, which is a limitation of pair-based chip
+  validation in general. The pair is therefore shown as a demonstration of the output (a daily dose, `dose_view.png`),
+  not as evidence that the method beats potency; that comparison is the benchmark below.
 - **Trovafloxacin / levofloxacin:** chip potency orders the pair correctly (95 uM vs no toxicity up to 532 uM). Once
   exposure enters, trovafloxacin's margin (74x) sits above levofloxacin's *lower bound* (>45x), so the margin can no
   longer confirm the order: inconclusive, not a demonstrated reversal.

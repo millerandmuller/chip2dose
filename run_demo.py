@@ -60,6 +60,7 @@ def run_liver() -> tuple[pd.DataFrame, pd.DataFrame]:
     write_csv(margins, "liver_margin_table.csv")
     write_csv(pairs, "pair_table.csv")
     figures.pair_view(margins, *HERO_PAIR, config.RESULTS / "pair_view.png")
+    figures.dose_view(margins, pairs, *HERO_PAIR, config.RESULTS / "dose_view.png")
     matched = {tuple(sorted(p)) for p in zip(margins["key"], margins["partner_key"]) if p[1]}
     for a, b in sorted(matched):
         figures.pair_view(margins, a, b, config.RESULTS / "pairs" / f"pair_{a}_{b}.png")

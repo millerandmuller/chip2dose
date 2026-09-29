@@ -75,3 +75,21 @@ def test_readout_slot_gives_bands_and_units(capsys):
 def test_neural_chemicals_are_found_by_name():
     text = "\n".join(compound.describe("rotenone"))
     assert "Neural MEA" in text and "AED vs predicted exposure" in text
+
+
+def test_dose_relation_respects_the_band():
+    assert "above the whole band" in figures.dose_relation(16.1, 16.1, 61.7, 600)
+    # pioglitazone: 45 mg lies inside 39.6-291, so no "below" claim without the qualifier
+    text = figures.dose_relation(90.4, 39.6, 291, 45)
+    assert "inside the band" in text and "whole band" not in text
+    assert "below the whole band" in figures.dose_relation(90, 60, 200, 10)
+
+
+def test_dose_view_renders_and_refuses_pairs_without_a_dose(tmp_path):
+    margins = liver.margin_table()
+    pairs = liver.pair_table(margins)
+    path = figures.dose_view(margins, pairs, "troglitazone", "pioglitazone", tmp_path / "d.png")
+    assert path.stat().st_size > 10_000
+    import pytest
+    with pytest.raises(ValueError):
+        figures.dose_view(margins, pairs, "ambrisentan", "sitaxsentan", tmp_path / "x.png")

@@ -138,6 +138,72 @@ def pair_view(margins: pd.DataFrame, key_a: str, key_b: str, path: Path) -> Path
     return _save(fig, path)
 
 
+def dose_relation(dose: float, low: float, high: float, prescribed: float) -> str:
+    """Prescribed dose against the chip-derived dose AND its band; the band decides the wording."""
+    if prescribed > high:
+        return f"patients take {prescribed / dose:.0f}x the chip-derived dose (above the whole band)"
+    if prescribed < low:
+        return f"patients take {dose / prescribed:.0f}x less than the chip-derived dose (below the whole band)"
+    side = "less than" if prescribed < dose else "more than"
+    ratio = dose / prescribed if prescribed < dose else prescribed / dose
+    return f"patients take {ratio:.0f}x {side} the point estimate, but inside the band"
+
+
+def dose_view(margins: pd.DataFrame, pairs: pd.DataFrame, key_a: str, key_b: str, path: Path) -> Path:
+    """The output in real units: the daily dose at which the chip's toxic concentration is reached,
+    next to the dose patients take. Illustrates what the tool returns; it is not the comparative
+    evidence (that is the benchmark), and the footer says so."""
+    by_key = margins.set_index("key")
+    rows = sorted([by_key.loc[key_a], by_key.loc[key_b]], key=lambda r: r["garside_rank"])
+    for row in rows:
+        if not np.isfinite(row["equivalent_dose_mg"]):
+            raise ValueError(f"{row['compound']}: no dose-matched Cmax, no equivalent daily dose to show")
+    colours, ypos = [VERMILLION, BLUE], [1, 0]
+
+    fig, ax = plt.subplots(**VIDEO)
+    values = []
+    for row, colour, y in zip(rows, colours, ypos):
+        lo, hi = row["equivalent_dose_band_low"], row["equivalent_dose_band_high"]
+        dose, prescribed = row["equivalent_dose_mg"], row["clinical_dose_mg"]
+        values += [lo, hi, prescribed]
+        ax.plot([lo, hi], [y, y], color=colour, lw=14, alpha=0.3, solid_capstyle="butt")
+        ax.plot(dose, y, "o", color=colour, ms=18)
+        ax.annotate(f"chip: harm from ~{_fmt(dose)} mg/day\n(band {_fmt(lo)}-{_fmt(hi)})", (dose, y),
+                    textcoords="offset points", xytext=(0, 26), ha="center", fontsize=15, color=colour)
+        ax.plot(prescribed, y, "D", color=BLACK, ms=16)
+        ax.annotate(f"patients: {_fmt(prescribed)} mg/day", (prescribed, y), textcoords="offset points",
+                    xytext=(0, -38), ha="center", fontsize=15)
+        ax.annotate(dose_relation(dose, lo, hi, prescribed), (0.99, y + 0.46), xycoords=("axes fraction", "data"),
+                    ha="right", va="center", fontsize=15, color=colour, weight="bold")
+
+    names = []
+    for row in rows:
+        clinical = labels.dilirank_label(row["compound"])
+        status = "withdrawn" if clinical.found and "withdrawn" in clinical.text.lower() else "not withdrawn"
+        names.append(f"{row['compound']}\n{status}; Garside rank {row['garside_rank']}")
+    ax.set_yticks(ypos)
+    ax.set_yticklabels(names, fontsize=16)
+    for tick, colour in zip(ax.get_yticklabels(), colours):
+        tick.set_color(colour)
+    _log_axis(ax, values, pad=3.0)
+    ax.set_ylim(-0.7, 1.8)
+    ax.set_xlabel("mg per day (log scale)")
+    ax.grid(axis="x", alpha=0.25)
+    ax.set_title(f"{rows[0]['compound']} and {rows[1]['compound']}: the chip result as a daily dose", fontsize=22)
+
+    pair = pairs[pairs["clinically_worse"].eq(rows[0]["compound"]) & pairs["comparator"].eq(rows[1]["compound"])]
+    potency_note = (f"Chip potency alone already ranks {rows[0]['compound']} as more toxic "
+                    f"({pair['potency_fold'].iloc[0]:.0f}-fold). " if not pair.empty and
+                    np.isfinite(pair["potency_fold"].iloc[0]) else "")
+    fig.text(0.01, -0.08,
+             f"{potency_note}This pair illustrates what the tool returns; the comparison with potency alone is the "
+             "220-drug benchmark. Chip-derived dose = clinical dose x (chip toxic concentration / Cmax at that dose), "
+             "assuming linear pharmacokinetics; dose and dose-matched Cmax from Geci et al. 2026; chip data Ewart et al. 2022; "
+             "withdrawal status from FDA DILIrank 2.0.",
+             fontsize=11, color=GREY, wrap=True)
+    return _save(fig, path)
+
+
 def liver_overview(margins: pd.DataFrame, path: Path) -> Path:
     """All 27 Liver-Chip drugs: free margin with band against the convention threshold."""
     m = margins.sort_values("margin_free").reset_index(drop=True)
