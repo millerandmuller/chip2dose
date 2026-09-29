@@ -134,11 +134,12 @@ What kind of agreement this is turns on one fact, so it comes first: their ratio
 does ours. It is the same fixed log-ratio of exposure to lowest point of departure, scored the same way, and that
 identity is exactly what makes the two columns comparable. Nothing in this table is held out, because here there is
 nothing to fit: the pre-registered split cannot move either point estimate. What the pre-registration and the grouping
-buy on these rows is three other things: the drugs and the analysis plan were fixed before the first evaluation, so the
-inclusion filters could not be chosen to suit the answer; the interval comes from a bootstrap that resamples whole
-groups (matched pairs, the same molecule, structural neighbours at Morgan Tanimoto >= 0.4), so near-duplicate drugs
-cannot narrow it; and the same drugs carry a paired comparison against potency alone, which the published retrospective
-analysis does not report. Held-out estimation in this repository belongs to the learned arms, where the pre-registered
+buy on these rows is three other things: the inclusion filters, the analysis plan and the split were fixed before we
+computed any comparison of the arms on this data; the interval comes from a bootstrap that resamples whole groups
+(matched pairs, the same molecule, structural neighbours at Morgan Tanimoto >= 0.4), so near-duplicate drugs cannot
+narrow it; and the same drugs carry a paired comparison against potency alone, which the published retrospective
+analysis does not report. The filters were not chosen blind to the literature: the published finding was known when
+they were written, so this is a pre-registered analysis, not a blind one. Held-out estimation in this repository belongs to the learned arms, where the pre-registered
 primary comparison (+0.24 [+0.15, +0.34]) sits between two fitted models.
 
 Both of our intervals contain their published value. The two columns are not like for like, in three ways that all
