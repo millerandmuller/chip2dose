@@ -2,13 +2,15 @@
 
     python run_demo.py                       # everything: tables, figures, validation, summary
     python run_demo.py --compound troglitazone
-    python run_demo.py --pair troglitazone pioglitazone
-    python run_demo.py --skip-validation     # margins and figures only (seconds)
+    python run_demo.py --pair clozapine olanzapine          # one extra pair figure, seconds
+    python run_demo.py --readout 12 --cmax 0.8 --fu-plasma 0.05 --fu-medium 0.7   # your own chip value
+    python run_demo.py --skip-validation     # margins and figures only; summary.md is left untouched
 """
 
 from __future__ import annotations
 
 import argparse
+import importlib.util
 import json
 import sys
 import time
@@ -17,7 +19,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from src import compound, config, figures, liver, load, neural, pod, validate
+from src import compound, config, figures, liver, load, margin, neural, pod, validate
 
 HERO_PAIR = ("troglitazone", "pioglitazone")
 
@@ -44,12 +46,20 @@ def run_crosschecks() -> list[dict]:
     return checks
 
 
-def run_liver(pair: tuple[str, str]) -> tuple[pd.DataFrame, pd.DataFrame]:
+def input_problems() -> list[str]:
+    """Checksum every input before any number is computed (data/fetch.py is not a package)."""
+    spec = importlib.util.spec_from_file_location("fetch", config.DATA / "fetch.py")
+    fetch = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(fetch)
+    return fetch.verify_cached()
+
+
+def run_liver() -> tuple[pd.DataFrame, pd.DataFrame]:
     margins = liver.margin_table()
     pairs = liver.pair_table(margins)
     write_csv(margins, "liver_margin_table.csv")
     write_csv(pairs, "pair_table.csv")
-    figures.pair_view(margins, *pair, config.RESULTS / "pair_view.png")
+    figures.pair_view(margins, *HERO_PAIR, config.RESULTS / "pair_view.png")
     matched = {tuple(sorted(p)) for p in zip(margins["key"], margins["partner_key"]) if p[1]}
     for a, b in sorted(matched):
         figures.pair_view(margins, a, b, config.RESULTS / "pairs" / f"pair_{a}_{b}.png")
@@ -91,6 +101,10 @@ def summary_text(checks, liver_margins, pairs, neural_potency, neural_margins, v
     lines += ["", "## Liver-Chip (27 drugs, Ewart et al. 2022)", ""]
     for _, row in liver_margins[liver_margins["key"].isin(HERO_PAIR)].iterrows():
         lines.append(f"- {row['result_line']}")
+        if pd.notna(row["equivalent_dose_mg"]):
+            lines.append(f"  - {row['compound']}: chip-toxic concentration reached at {row['equivalent_dose_mg']:,.3g} mg/day "
+                         f"(band {row['equivalent_dose_band_low']:,.3g}-{row['equivalent_dose_band_high']:,.3g}) vs "
+                         f"{row['clinical_dose_mg']:g} mg prescribed (linear PK assumed)")
     if not hero.empty:
         h = hero.iloc[0]
         lines.append(f"- Pair {h['pair']}: potency differs {h['potency_fold']:.3g}-fold, free margin differs "
@@ -120,28 +134,90 @@ def summary_text(checks, liver_margins, pairs, neural_potency, neural_margins, v
     return "\n".join(lines)
 
 
+def run_pair(drugs: list[str]) -> int:
+    """One extra pair figure; never touches the canonical pair_view.png."""
+    a, b = (load.normalize_name(d) for d in drugs)
+    margins = liver.margin_table()
+    known = set(margins["key"])
+    missing = [d for d, k in zip(drugs, (a, b)) if k not in known]
+    if missing:
+        print(f"Not in the Liver-Chip set: {', '.join(missing)}. Pair views need chip data for both drugs; "
+              f"available: {', '.join(sorted(margins['compound']))}.")
+        return 1
+    if a == b:
+        print("A pair needs two different drugs.")
+        return 1
+    path = figures.pair_view(margins, a, b, config.RESULTS / "pairs" / f"pair_{'_'.join(sorted((a, b)))}.png")
+    print(f"wrote {path.relative_to(config.ROOT)}")
+    return 0
+
+
+def run_readout(args: argparse.Namespace) -> int:
+    """A lab's own chip value: POD (uM) + clinical Cmax (uM), optional fractions unbound."""
+    fu_plasma = None if args.fu_plasma is None else margin.Quantity.exact(args.fu_plasma, "user fu plasma")
+    assumptions = [] if args.fu_plasma is not None else ["fraction unbound in plasma not given"]
+    inp = margin.MarginInput(
+        name=args.name,
+        pod=margin.point_with_default(args.readout, "chip POD (user)")[0],
+        cmax=margin.Quantity.exact(args.cmax, "clinical Cmax (user)") if args.cmax else None,
+        fu_plasma=fu_plasma,
+        fu_medium=margin.Quantity.exact(args.fu_medium, "user fu medium"),
+        pod_censored=args.censored,
+        dose_mg=args.dose_mg,
+        assumptions=["chip POD: single value, 3-fold uncertainty assumed"] + assumptions,
+    )
+    for threshold in (config.THRESHOLDS["liver_free_375"], config.THRESHOLDS["liver_total_50"]):
+        result = margin.compute(inp, threshold)
+        print(result.line)
+    if result.equivalent_dose_mg is not None:
+        lo, hi = result.equivalent_dose_band
+        print(f"Equivalent daily dose: {result.equivalent_dose_mg:,.3g} mg (band {lo:,.3g}-{hi:,.3g} mg) "
+              f"against {args.dose_mg:g} mg (linear PK assumed).")
+    for note in result.assumptions:
+        print(f"  assumption: {note}")
+    print("Thresholds are Liver-Chip conventions (Ewart et al. 2022); for another organ, read the margin, not the verdict.")
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--compound", help="describe one compound and exit")
-    parser.add_argument("--pair", nargs=2, metavar=("DRUG_A", "DRUG_B"), help="pair for the pair view")
+    parser.add_argument("--pair", nargs=2, metavar=("DRUG_A", "DRUG_B"), help="render one extra pair view and exit")
+    parser.add_argument("--readout", type=float, metavar="POD_UM", help="your chip's lowest toxic concentration (uM)")
+    parser.add_argument("--cmax", type=float, metavar="UM", help="with --readout: clinical total Cmax (uM)")
+    parser.add_argument("--fu-plasma", type=float, help="with --readout: fraction unbound in plasma")
+    parser.add_argument("--fu-medium", type=float, default=1.0, help="with --readout: fraction unbound in chip medium (default 1)")
+    parser.add_argument("--dose-mg", type=float, help="with --readout: clinical daily dose belonging to --cmax")
+    parser.add_argument("--censored", action="store_true", help="with --readout: no toxicity seen up to the value")
+    parser.add_argument("--name", default="your compound", help="with --readout: label for the output")
     parser.add_argument("--skip-validation", action="store_true")
     args = parser.parse_args(argv)
     warnings.simplefilter("ignore")
 
+    if args.readout is not None:
+        return run_readout(args)
+    problems = input_problems()
+    if problems:
+        print("Input data are missing or changed; run `make data` first:\n  " + "\n  ".join(problems))
+        return 2
     if args.compound:
         print("\n".join(compound.describe(args.compound)))
         return 0
+    if args.pair:
+        return run_pair(args.pair)
 
-    pair = tuple(load.normalize_name(p) for p in args.pair) if args.pair else HERO_PAIR
     started = time.time()
     print("cross-checks ..."); checks = run_crosschecks()
-    print("liver-chip margins and pair views ..."); liver_margins, pairs = run_liver(pair)
+    print("liver-chip margins and pair views ..."); liver_margins, pairs = run_liver()
     print("neural-chip margins ..."); neural_potency, neural_margins = run_neural()
     validation = {}
     if not args.skip_validation:
-        print("pre-registered validation (about a minute) ..."); validation = run_validation()
+        print("pre-registered validation (the slow step: minutes on a laptop) ..."); validation = run_validation()
     summary = summary_text(checks, liver_margins, pairs, neural_potency, neural_margins, validation)
-    (config.RESULTS / "summary.md").write_text(summary, encoding="utf-8")
+    if validation:
+        (config.RESULTS / "summary.md").write_text(summary, encoding="utf-8")
+    else:
+        print("(--skip-validation: results/summary.md left unchanged)")
     print(summary)
     print(f"done in {time.time() - started:.0f} s; outputs in {config.RESULTS.relative_to(config.ROOT)}/")
     return 0

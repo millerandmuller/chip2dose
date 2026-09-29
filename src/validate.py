@@ -317,7 +317,7 @@ def preregister(force: bool = False) -> dict:
 
 
 def load_verified_split(table: pd.DataFrame) -> pd.DataFrame:
-    """Recompute the split and require that it matches the pre-registered hash and file."""
+    """Recompute the split AND the analysis plan; both must equal the pre-registered files."""
     if not PREREG.exists():
         raise SystemExit("no pre-registration found; run `python -m src.validate --preregister` and commit it first")
     doc = json.loads(PREREG.read_text(encoding="utf-8"))
@@ -325,6 +325,10 @@ def load_verified_split(table: pd.DataFrame) -> pd.DataFrame:
     text = split_csv_text(frame)
     if sha256_text(text) != doc["split_sha256"] or SPLIT.read_text(encoding="utf-8") != text:
         raise SystemExit("split does not match the pre-registration; refusing to evaluate")
+    expected = preregistration_document(table, frame)
+    drifted = sorted(k for k in expected.keys() | doc.keys() if expected.get(k) != doc.get(k))
+    if drifted:
+        raise SystemExit(f"analysis plan differs from the pre-registration in: {', '.join(drifted)}; refusing to evaluate")
     return frame
 
 
@@ -371,7 +375,7 @@ def evaluate(endpoint: str = "wide") -> dict:
     }
 
 
-# Added after the first evaluation run (2026-09-29), NOT pre-registered. Question it answers:
+# Added after the first evaluation run (2026-09-28, local time), NOT pre-registered. Question it answers:
 # how much of the exposure-aware advantage comes from exposure alone, without any chip data?
 EXPLORATORY_ARMS = [
     Arm("exploratory: total Cmax alone", "score", score_column="log_cmax", sign=1.0),
@@ -432,7 +436,9 @@ def coefficients(table: pd.DataFrame, y: np.ndarray) -> pd.DataFrame:
 
 def failure_cases(result: dict, arm_name: str = PRIMARY[0], n: int = 8) -> pd.DataFrame:
     """Drugs the exposure-aware model gets wrong at the Youden-optimal cut on its own held-out
-    scores. Reported with their real-unit inputs only; the model score itself is not reported."""
+    scores. Reported with their real-unit inputs only; the model score itself is not reported.
+    The cut is chosen in-sample on the same held-out scores, so this error list is slightly
+    optimistic; it illustrates failure modes and is not a performance estimate."""
     from sklearn.metrics import roc_curve
 
     y, s, table = result["_y"], result["_scores"][arm_name], result["_table"]

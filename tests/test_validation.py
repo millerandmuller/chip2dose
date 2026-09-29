@@ -51,3 +51,18 @@ def test_rule_of_thumb_is_a_binary_flag_on_dose_and_logp():
     table, _ = _table_and_split()
     expected = ((table["dose_mg"] >= 100) & (table["logp"] >= 3)).astype(int)
     assert np.array_equal(table["rule_of_thumb"], expected)
+
+
+def test_changed_analysis_plan_is_refused(tmp_path, monkeypatch):
+    doc = json.loads(validate.PREREG.read_text())
+    doc["primary_comparison"] = doc["primary_comparison"][::-1]
+    fake = tmp_path / "preregistration.json"
+    fake.write_text(json.dumps(doc))
+    monkeypatch.setattr(validate, "PREREG", fake)
+    table = validate.benchmark_table()
+    try:
+        validate.load_verified_split(table)
+    except SystemExit as exc:
+        assert "primary_comparison" in str(exc)
+    else:
+        raise AssertionError("a changed plan must be refused")

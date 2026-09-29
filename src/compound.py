@@ -4,8 +4,9 @@ from __future__ import annotations
 
 import numpy as np
 
-from . import config, labels, liver, load, margin, pod
+from . import config, labels, liver, load, margin, neural, pod
 
+IV_ONLY = "Given intravenously only: the oral dose rule of thumb does not apply."
 NO_EXPOSURE = "No clinical exposure (Cmax) available for this compound - no margin is computed."
 NO_LITERATURE_CONVENTION = (
     "No convention threshold exists for literature in-vitro PODs; see the validation for how this margin "
@@ -25,9 +26,8 @@ def _chip_lines(key: str) -> list[str]:
     row = pods.loc[key].copy()
     row["key"] = key
     inp = liver.build_input(row)
-    rng = np.random.default_rng(config.MC_SEED)
-    free = margin.compute(inp, liver.REFERENCE_THRESHOLD, rng)
-    total = margin.compute(inp, liver.TOTAL_THRESHOLD, rng)
+    free = margin.compute(inp, liver.REFERENCE_THRESHOLD)
+    total = margin.compute(inp, liver.TOTAL_THRESHOLD)
     lines = [
         "Liver-Chip (Ewart et al. 2022): "
         f"lowest toxic concentration {'>' if row['censored'] else ''}{row['pod_uM']:.3g} uM total "
@@ -71,8 +71,26 @@ def _literature_lines(key: str) -> list[str]:
         f"{row['dose_mg'] * p.total_band[0]:,.3g}-{row['dose_mg'] * p.total_band[1]:,.3g} mg, "
         f"against a prescribed {row['dose_mg']:g} mg (linear-PK assumption).",
         "  " + NO_LITERATURE_CONVENTION,
-        "  " + _rule_of_thumb_line(row["dose_mg"], row["logp"]),
+        "  " + (IV_ONLY if row["iv_only"] else _rule_of_thumb_line(row["dose_mg"], row["logp"])),
     ] + [f"  assumption: {n}" for n in notes]
+
+
+def _neural_lines(key: str) -> list[str]:
+    potency, margins = neural.margin_table()
+    potency_rows = neural.potency_table()
+    hit = potency_rows[potency_rows["keys"].map(lambda keys: key in keys)]
+    if hit.empty:
+        return []
+    row = hit.iloc[0]
+    if not row["active"]:
+        return [f"Neural MEA network formation (Shafer et al. 2019): {row['compound']} inactive at every tested concentration."]
+    lines = [f"Neural MEA network formation (Shafer et al. 2019): lowest network EC50 {row['min_network_ec50_uM']:.3g} uM."]
+    for _, m in margins[margins["compound"] == row["compound"]].iterrows():
+        lines.append(f"  {m['route']}: margin {margin.fmt_ratio(m['margin'])} ({m['margin_basis']}), band "
+                     f"{margin.fmt_ratio(m['band_low'])} to {margin.fmt_ratio(m['band_high'])}; {m['verdict']}.")
+    if len(lines) == 1:
+        lines.append("  No exposure comparator in the data for this chemical - no margin is computed.")
+    return lines
 
 
 def describe(name: str) -> list[str]:
@@ -83,7 +101,9 @@ def describe(name: str) -> list[str]:
         lines += _chip_lines(key)
     literature = _literature_lines(key)
     lines += literature
-    if key not in chip_keys and not literature:
-        lines.append("Not in the Liver-Chip set or the literature benchmark - no point of departure available.")
+    neural_lines = _neural_lines(key)
+    lines += neural_lines
+    if key not in chip_keys and not literature and not neural_lines:
+        lines.append("Not in the Liver-Chip set, the literature benchmark or the neural dataset - no point of departure available.")
     lines.append(labels.dilirank_label(name).text)
     return lines

@@ -43,13 +43,21 @@ def sha256_of(path: Path) -> str:
     return digest.hexdigest()
 
 
-def download(url: str, target: Path, timeout: int = 120) -> None:
+def download(url: str, target: Path, pinned: str | None, timeout: int = 120) -> None:
+    """Download to a side file and only replace the target once the checksum matches."""
     request = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
     with urllib.request.urlopen(request, timeout=timeout) as response:
         payload = response.read()
     target.parent.mkdir(parents=True, exist_ok=True)
     tmp = target.with_suffix(target.suffix + ".part")
     tmp.write_bytes(payload)
+    actual = sha256_of(tmp)
+    if pinned and actual != pinned:
+        tmp.unlink()
+        raise ChecksumError(
+            f"{url} returned a file with sha256 {actual}, not the pinned {pinned}. "
+            "The upstream file changed; results are not reproducible until this is resolved."
+        )
     tmp.replace(target)
 
 
@@ -59,14 +67,19 @@ def try_download(source: dict, target: Path, attempts: int = 3) -> str:
     for url in source["urls"]:
         for attempt in range(1, attempts + 1):
             try:
-                download(url, target)
+                download(url, target, source.get("sha256"))
                 return url
+            except ChecksumError:
+                raise
             except Exception as exc:  # network errors differ by platform; all are reported
                 errors.append(f"{url} (attempt {attempt}): {exc}")
                 if attempt < attempts:
                     time.sleep(2 ** attempt)
+    hint = ("" if source.get("redistribute") else
+            " This file is not redistributed in the repository (its source has no license file), so it"
+            " must be downloaded once; connect to the internet and run `make data` again.")
     raise RuntimeError(
-        f"all URLs failed for {source['id']} and no verified cached copy exists:\n  "
+        f"could not obtain {source['id']} and no verified cached copy exists.{hint}\n  "
         + "\n  ".join(errors)
     )
 
@@ -78,15 +91,22 @@ def ensure_file(source: dict) -> tuple[Path, str]:
 
     if target.exists() and pinned and sha256_of(target) == pinned:
         return target, "cached, checksum ok"
+    status = "cached copy failed its checksum; re-downloaded" if target.exists() else "downloaded"
+    try_download(source, target)
+    return target, status if pinned else "downloaded, NOT PINNED"
 
-    url = try_download(source, target)
-    actual = sha256_of(target)
-    if pinned and actual != pinned:
-        raise ChecksumError(
-            f"{source['id']}: downloaded from {url} but sha256 {actual} != pinned {pinned}. "
-            "The upstream file changed; results are not reproducible until this is resolved."
-        )
-    return target, "downloaded" if pinned else "downloaded, NOT PINNED"
+
+def verify_cached() -> list[str]:
+    """Problems with the local inputs (missing or checksum mismatch); never downloads."""
+    manifest = json.loads(MANIFEST.read_text(encoding="utf-8"))
+    problems = []
+    for source in manifest["sources"]:
+        target = DATA_DIR / source["file"]
+        if not target.exists():
+            problems.append(f"{source['id']}: missing ({source['file']})")
+        elif sha256_of(target) != source.get("sha256"):
+            problems.append(f"{source['id']}: checksum mismatch ({source['file']})")
+    return problems
 
 
 def write_provenance(rows: list[dict]) -> None:
@@ -105,7 +125,11 @@ def main(argv: list[str] | None = None) -> int:
     manifest = json.loads(MANIFEST.read_text(encoding="utf-8"))
     rows, unpinned = [], []
     for source in manifest["sources"]:
-        path, status = ensure_file(source)
+        try:
+            path, status = ensure_file(source)
+        except (RuntimeError, ChecksumError) as exc:
+            print(f"ERROR: {exc}", file=sys.stderr)
+            return 2
         digest = sha256_of(path)
         if args.pin:
             source["sha256"] = digest

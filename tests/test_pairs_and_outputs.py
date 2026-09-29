@@ -49,3 +49,29 @@ def test_no_per_compound_score_in_any_results_table():
     for path in tables:
         columns = " ".join(pd.read_csv(path, nrows=1).columns).lower()
         assert not any(word in columns for word in PROBABILITY_WORDS), path.name
+
+
+def test_censored_comparator_never_counts_as_a_wrong_order():
+    pairs = liver.pair_table().set_index("pair")
+    row = pairs.loc["Trovafloxacin / Levofloxacin"]
+    assert row["margin_fold_is_lower_bound"]
+    assert row["margin_orders_like_clinic"] == "inconclusive (comparator censored)"
+
+
+def test_pair_cli_rejects_unknown_and_labels_unpublished_pairs(capsys):
+    import run_demo
+    assert run_demo.main(["--pair", "aspirin", "troglitazone"]) == 1
+    assert "Not in the Liver-Chip set" in capsys.readouterr().out
+    assert run_demo.main(["--pair", "troglitazone", "troglitazone"]) == 1
+
+
+def test_readout_slot_gives_bands_and_units(capsys):
+    import run_demo
+    assert run_demo.main(["--readout", "12", "--cmax", "0.8", "--fu-plasma", "0.05", "--fu-medium", "0.7"]) == 0
+    out = capsys.readouterr().out
+    assert "margin (free)" in out and "Band" in out
+
+
+def test_neural_chemicals_are_found_by_name():
+    text = "\n".join(compound.describe("rotenone"))
+    assert "Neural MEA" in text and "AED vs predicted exposure" in text

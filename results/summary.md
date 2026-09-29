@@ -11,8 +11,10 @@
 
 ## Liver-Chip (27 drugs, Ewart et al. 2022)
 
-- Pioglitazone: margin (free) 94.1x - below the convention threshold 375 (Liver-Chip, two donors: sensitivity 87% [62-96%], specificity 100% (27 drugs)). Band: 19.6x to 164x.
-- Troglitazone: margin (free) 1.42x - below the convention threshold 375 (Liver-Chip, two donors: sensitivity 87% [62-96%], specificity 100% (27 drugs)). Band: 0.055x to 2.54x.
+- Pioglitazone: margin (free) 94.1x - below the convention threshold 375 (Liver-Chip, two donors: sensitivity 87% [62-96%], specificity 100% (27 drugs)). Band: 19.5x to 164x.
+  - Pioglitazone: chip-toxic concentration reached at 90.4 mg/day (band 39.6-291) vs 45 mg prescribed (linear PK assumed)
+- Troglitazone: margin (free) 1.42x - below the convention threshold 375 (Liver-Chip, two donors: sensitivity 87% [62-96%], specificity 100% (27 drugs)). Band: 0.054x to 2.52x.
+  - Troglitazone: chip-toxic concentration reached at 16.1 mg/day (band 16.1-61.7) vs 600 mg prescribed (linear PK assumed)
 - Pair Troglitazone / Pioglitazone: potency differs 46.1-fold, free margin differs 66.1-fold; margin orders the pair like the clinic: True; opposite verdicts: False.
 - Free-margin verdicts against 375: {'BELOW': 14, 'INCONCLUSIVE (censored below threshold)': 9, 'STRADDLES': 4}
 

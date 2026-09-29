@@ -42,13 +42,14 @@ def potency_table() -> pd.DataFrame:
     ).reset_index(drop=True)
 
 
-def aed_route(rng: np.random.Generator) -> pd.DataFrame:
+def aed_route() -> pd.DataFrame:
     """AED (dataset value, not re-estimated) against predicted population exposure."""
     iv = load.mea_ivive().dropna(subset=["aed_mg_kg_day"]).drop_duplicates("name")
     rows = []
     for _, r in iv.iterrows():
         aed, note_a = margin.point_with_default(r["aed_mg_kg_day"], "AED (EPA, from min EC50)")
         exposure, note_e = margin.point_with_default(r["expocast_mg_kg_day"], "ExpoCast median exposure")
+        rng = np.random.default_rng(config.MC_SEED)  # per compound, so results do not depend on row order
         ratio = aed.sample(rng, config.MC_SAMPLES) / exposure.sample(rng, config.MC_SAMPLES)
         point = r["aed_mg_kg_day"] / r["expocast_mg_kg_day"]
         band = margin.band_of(ratio, point)
@@ -85,7 +86,7 @@ def _cmax_lookup() -> dict[str, dict]:
     return out
 
 
-def drug_route(potency: pd.DataFrame, rng: np.random.Generator) -> pd.DataFrame:
+def drug_route(potency: pd.DataFrame) -> pd.DataFrame:
     lookup = _cmax_lookup()
     rows = []
     for _, r in potency[potency["active"]].iterrows():
@@ -108,7 +109,7 @@ def drug_route(potency: pd.DataFrame, rng: np.random.Generator) -> pd.DataFrame:
             name=r["compound"], pod=pod, cmax=cmax, fu_plasma=fu,
             fu_medium=margin.Quantity.exact(1.0, "MEA medium, nominal"), assumptions=assumptions,
         )
-        p = margin.propagate(inp, rng)
+        p = margin.propagate(inp, np.random.default_rng(config.MC_SEED))
         rows.append(
             {
                 "compound": r["compound"],
@@ -132,9 +133,8 @@ def drug_route(potency: pd.DataFrame, rng: np.random.Generator) -> pd.DataFrame:
 
 def margin_table() -> tuple[pd.DataFrame, pd.DataFrame]:
     """(potency for all chemicals, margins where an exposure comparator exists)."""
-    rng = np.random.default_rng(config.MC_SEED)
     potency = potency_table()
-    margins = pd.concat([aed_route(rng), drug_route(potency, rng)], ignore_index=True)
+    margins = pd.concat([aed_route(), drug_route(potency)], ignore_index=True)
     potency_out = potency.drop(columns=["keys"]).assign(
         has_margin=potency["compound"].isin(set(margins["compound"]))
     )

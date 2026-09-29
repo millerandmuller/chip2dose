@@ -59,13 +59,32 @@ def test_censored_pod_is_carried_through_not_treated_as_a_number():
     assert ">" in result.line
 
 
-def test_unknown_fraction_unbound_gives_no_free_margin():
+def test_unknown_fraction_unbound_widens_the_band_and_says_so():
+    known = margin.compute(_input(), FREE_375)
     inp = _input()
     inp.fu_plasma = None
+    result = margin.compute(inp, FREE_375)
+    assert np.isnan(result.margin_free)  # no single value is claimed
+    assert result.free_band[1] / result.free_band[0] > known.free_band[1] / max(known.free_band[0], 1e-12)
+    assert "fraction unbound unknown" in result.line
+    assert any("fraction unbound in plasma unknown" in a for a in result.assumptions)
+
+
+@pytest.mark.parametrize("pod_uM,cmax,fu_p", [
+    (0.0, 1.0, 0.1), (float("nan"), 1.0, 0.1), (float("inf"), 1.0, 0.1), (-1.0, 1.0, 0.1),
+    (1.0, 0.0, 0.1), (1e300, 1e-300, 0.1), (1.0, 1.0, 5.0),
+])
+def test_unusable_inputs_give_no_margin_never_a_verdict(pod_uM, cmax, fu_p):
+    result = margin.compute(_input(pod_uM=pod_uM, cmax=cmax, fu_p=fu_p), FREE_375)
+    assert result.verdict == margin.NO_MARGIN
+    assert "no margin computed" in result.line
+
+
+def test_missing_exposure_gives_no_margin():
+    inp = _input()
+    inp.cmax = None
     result = margin.compute(inp, TOTAL_50)
-    assert np.isnan(result.margin_free)
-    with pytest.raises(ValueError):
-        margin.compute(inp, FREE_375)
+    assert result.verdict == margin.NO_MARGIN and "no default is substituted" in result.line
 
 
 def test_herg_threshold_30_is_a_tradeoff_with_error_rates():
@@ -77,11 +96,26 @@ def test_herg_threshold_30_is_a_tradeoff_with_error_rates():
     assert "27%" in result.line and "33%" in result.line
 
 
-def test_liver_chip_margins_reproduce_published_mos():
-    # margin_total must equal the published Table 4 MOS-like value for every drug.
-    table = liver.margin_table()
-    ok = table["published_mos_total"] > 0
-    assert np.allclose(table.loc[ok, "margin_total"], table.loc[ok, "published_mos_total"])
+def test_free_margin_matches_hand_calculation_from_the_source_tables():
+    # Troglitazone by hand: Table 4 MOS 0.03; SD1 free/total dosing ratio 0.000657/0.01259; fu plasma 0.0011.
+    table = liver.margin_table().set_index("key")
+    assert table.at["troglitazone", "margin_free"] == pytest.approx(0.03 * (0.000657 / 0.01259) / 0.0011, rel=0.01)
+    # Tolcapone, SD1 row x0.1: free 0.005712 / total 0.10074; fu plasma 0.0012
+    assert table.at["tolcapone", "margin_free"] == pytest.approx(0.004 * (0.005712 / 0.10074) / 0.0012, rel=0.01)
+
+
+def test_same_compound_same_band_everywhere():
+    from src import compound
+    row = liver.margin_table().set_index("key").loc["troglitazone"]
+    assert row["result_line"] in "\n".join(compound.describe("troglitazone"))
+
+
+def test_chip_drugs_get_an_equivalent_daily_dose_when_a_dose_is_known():
+    table = liver.margin_table().set_index("key")
+    trog = table.loc["troglitazone"]
+    assert trog["clinical_dose_mg"] == 600
+    assert trog["equivalent_dose_band_low"] <= trog["equivalent_dose_mg"] <= trog["equivalent_dose_band_high"]
+    assert np.isnan(table.at["ambrisentan", "equivalent_dose_mg"])  # censored: no dose claimed
 
 
 def test_both_donor_rule_matches_published_column():

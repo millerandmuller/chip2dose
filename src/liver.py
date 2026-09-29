@@ -68,14 +68,40 @@ def build_input(row: pd.Series) -> margin.MarginInput:
     )
 
 
+def equivalent_dose(inp: margin.MarginInput, key: str) -> dict:
+    """Daily dose at which total Cmax would reach the chip's toxic concentration.
+
+    Uses a dose and the Cmax reported at that dose from the same source (Geci et al.), so dose and
+    exposure belong together; linear pharmacokinetics is assumed. Drugs without such a pair get none.
+    """
+    geci = _geci_row(key)
+    empty = {"clinical_dose_mg": np.nan, "equivalent_dose_mg": np.nan,
+             "equivalent_dose_band_low": np.nan, "equivalent_dose_band_high": np.nan, "dose_source": ""}
+    if geci is None or not np.isfinite(geci["dose_mg"]) or not np.isfinite(geci["cmax_uM"]) or inp.pod_censored:
+        return empty
+    cmax_q, _ = margin.range_or_default(list(geci["cmax_values_uM"]), geci["cmax_uM"], "Cmax at clinical dose")
+    paired = margin.MarginInput(name=inp.name, pod=inp.pod, cmax=cmax_q, fu_plasma=None,
+                                fu_medium=inp.fu_medium, dose_mg=geci["dose_mg"])
+    result = margin.compute(paired, TOTAL_THRESHOLD)
+    if result.equivalent_dose_mg is None:
+        return empty
+    return {
+        "clinical_dose_mg": geci["dose_mg"],
+        "equivalent_dose_mg": result.equivalent_dose_mg,
+        "equivalent_dose_band_low": result.equivalent_dose_band[0],
+        "equivalent_dose_band_high": result.equivalent_dose_band[1],
+        "dose_source": "dose and dose-matched Cmax from Geci et al. 2026; linear PK assumed",
+    }
+
+
 def margin_table() -> pd.DataFrame:
     pods = pod.liverchip_pods()
-    rng = np.random.default_rng(config.MC_SEED)
     rows = []
     for _, row in pods.iterrows():
         inp = build_input(row)
-        free = margin.compute(inp, REFERENCE_THRESHOLD, rng)
-        total = margin.compute(inp, TOTAL_THRESHOLD, rng)
+        # A fresh, fixed-seed generator per call: the same compound gets the same band everywhere.
+        free = margin.compute(inp, REFERENCE_THRESHOLD)
+        total = margin.compute(inp, TOTAL_THRESHOLD)
         out = free.as_row()
         out.update(
             {
@@ -93,6 +119,7 @@ def margin_table() -> pd.DataFrame:
                 "result_line_total": total.line,
             }
         )
+        out.update(equivalent_dose(inp, row["key"]))
         rows.append(out)
     return pd.DataFrame(rows)
 
@@ -130,9 +157,15 @@ def pair_table(margins: pd.DataFrame | None = None) -> pd.DataFrame:
                 "margin_free_worse": worse["margin_free"],
                 "margin_free_comparator": better["margin_free"],
                 "margin_fold": margin_fold,
+                "margin_fold_is_lower_bound": bool(better["censored"]),
                 "verdict_worse": worse["verdict"],
                 "verdict_comparator": better["verdict"],
-                "margin_orders_like_clinic": bool(worse["margin_free"] < better["margin_free"]),
+                # With a censored comparator only one direction can be shown: a lower bound above the
+                # worse drug's margin confirms the order; a lower bound below it proves nothing.
+                "margin_orders_like_clinic": (
+                    True if worse["margin_free"] < better["margin_free"]
+                    else ("inconclusive (comparator censored)" if better["censored"] else False)
+                ),
                 "opposite_verdicts": worse["verdict"] == "BELOW" and better["verdict"].startswith("ABOVE"),
                 # Exposure adds information beyond potency when the margin separates the pair by
                 # more than potency alone does.

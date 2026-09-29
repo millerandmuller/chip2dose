@@ -13,17 +13,24 @@ The output is a ratio against patient exposure or a daily dose in mg, never a 0-
 
 ```bash
 git clone https://github.com/millerandmuller/chip2dose && cd chip2dose
-make            # creates .venv (Python 3.11), downloads + verifies data, writes results/ (~2 min on a laptop CPU)
-make test       # 27 tests
+make            # creates .venv (Python 3.11), downloads + verifies data, writes results/
+make test       # 42 tests
 ```
 
+A full `make` takes about 2-3 minutes on an idle laptop CPU and up to ~10 minutes on a busy one; the
+pre-registered validation (20 x 5 grouped cross-validation, 2,000 bootstrap draws) is the slow step.
 No GPU, no paid service, no API key. If `python3.11` is not on your PATH: `make PYTHON=python3`.
+Network access is needed once: two input files (Geci et al.) are not redistributed here because their
+repository has no license file, so `make data` downloads them at a pinned commit and verifies the checksum.
+Everything else is cached in `data/raw/`.
 
-Single compound (under a second):
+Other entry points (a few seconds each; every run first checks the input checksums):
 
 ```bash
-.venv/bin/python run_demo.py --compound troglitazone
-.venv/bin/python run_demo.py --pair clozapine olanzapine
+.venv/bin/python run_demo.py --compound troglitazone        # everything known about one drug
+.venv/bin/python run_demo.py --pair clozapine olanzapine    # one extra pair figure in results/pairs/
+.venv/bin/python run_demo.py --readout 12 --cmax 0.8 --fu-plasma 0.05 --fu-medium 0.7 --dose-mg 200
+                                                            # your own chip value: margins, bands, equivalent dose
 ```
 
 ## What comes out
@@ -32,9 +39,9 @@ Single compound (under a second):
 |---|---|
 | `results/summary.md` | every headline number, generated |
 | `results/pair_view.png`, `results/pairs/` | potency, patient exposure and margin for each of the 7 matched toxic/non-toxic pairs |
-| `results/liver_margin_table.csv`, `liver_margins.png` | 27 Liver-Chip drugs: total and free margin, band, verdict against the published convention, assumptions |
+| `results/liver_margin_table.csv`, `liver_margins.png` | 27 Liver-Chip drugs: total and free margin, band, verdict against the published convention, equivalent daily dose where a dose-matched Cmax exists, assumptions |
 | `results/roc.png`, `paired_difference.png`, `validation_*.csv` | the pre-registered validation on 220 drugs |
-| `results/failure_cases.csv` | drugs the model gets wrong, in real units |
+| `results/failure_cases.csv` | drugs the model gets wrong, in real units (cut chosen in-sample: an illustration, not a performance estimate) |
 | `results/neural_margin_table.csv`, `neural_margins.png` | the neural application |
 | `results/crosschecks.csv` | published numbers re-derived from their inputs, with every mismatch listed |
 
@@ -50,14 +57,21 @@ Single compound (under a second):
 3. **Uncertainty.** Every input is a range: two donors, several published Cmax values, fraction unbound from the study plus
    three predictors. Where a source gives one value, a 3-fold range is assumed and counted in `n_assumptions`. Bands are
    the 5th-95th percentile of 20,000 Monte-Carlo draws.
-4. **Verdict.** Against a *convention* with its error rates printed next to it: free margin 375 (Liver-Chip, sensitivity
+4. **Equivalent daily dose.** Where a clinical dose and the Cmax measured at that dose come from the same source, the
+   margin is turned into the daily dose at which Cmax would reach the chip's toxic concentration, assuming linear
+   pharmacokinetics. Troglitazone: about 16 mg/day (band 16-62) against 600 mg prescribed; pioglitazone: about 90 mg/day
+   (band 40-291) against 45 mg.
+5. **Verdict.** Against a *convention* with its error rates printed next to it: free margin 375 (Liver-Chip, sensitivity
    87 %, specificity 100 %) or total margin 50 (sensitivity 80 %, specificity 100 %). A band that straddles the threshold
-   is reported as such. A POD where no toxicity was seen is a lower bound and is never treated as a number.
+   is reported as such. A POD where no toxicity was seen is a lower bound and is never treated as a number. Unusable
+   inputs (missing exposure, zero or non-finite values, fraction unbound outside 0-1) give "no margin computed", never a
+   verdict; an unknown fraction unbound widens the free band across 0.001-1 instead of assuming a value.
 
 ## Validation (pre-registered)
 
 `validation/preregistration.json` and `validation/split.csv` were committed **before the first evaluation run**
-(see the git history). The code refuses to evaluate if the split no longer matches that hash.
+(commit `a76e7e9`; the evaluation results first appear in later commits). The code refuses to evaluate if either the
+split or any field of the analysis plan (endpoint, arms, features, comparisons, seeds) no longer matches that file.
 
 - 220 oral drugs with a lowest in-vitro POD, a clinical Cmax and a DILIrank label (172 with DILI concern, 48 without).
 - Folds are grouped: matched toxic/non-toxic pairs, the same molecule, and structurally similar drugs
@@ -86,13 +100,24 @@ against exposure, and most of the signal is the exposure.
   published matched pair, and the free margin orders them like the clinic (1.4x vs 94x). But their chip potencies
   already differ 46-fold, and both fall below the convention threshold. No matched pair in the Liver-Chip set shows
   near-identical potency: the non-toxic partners are mostly censored (no toxicity up to the highest tested concentration).
-- **Trovafloxacin / levofloxacin:** chip potency orders the pair correctly; adding exposure erases the separation.
+- **Trovafloxacin / levofloxacin:** chip potency orders the pair correctly (95 uM vs no toxicity up to 532 uM). Once
+  exposure enters, trovafloxacin's margin (74x) sits above levofloxacin's *lower bound* (>45x), so the margin can no
+  longer confirm the order: inconclusive, not a demonstrated reversal.
 - **Pioglitazone on the literature benchmark:** its lowest POD is a potent BSEP IC50 (0.3 uM), so the margin ranks it
   riskier than troglitazone, the opposite of the clinic.
 - **Neural application:** of 136 chemicals (82 active), 21 have an exposure comparator in the data; the table reports
-  margins only for those. No published threshold exists for this endpoint, so no verdict is issued.
+  margins only for those, in two separate panels because the two routes measure different things (pharmaceuticals:
+  EC50 / free clinical Cmax; environmental chemicals: EPA's administered equivalent dose / predicted population
+  exposure). No published threshold exists for this endpoint, so no verdict is issued.
+- The literature benchmark's lowest POD is the minimum over however many assays were run on a drug; the number of
+  assays alone separates the outcome about as well as potency (AUC 0.66). This favours the potency arm, i.e. works
+  against our headline, and is reported rather than corrected.
+- Grouping links drugs at Morgan Tanimoto >= 0.4; 47 cross-group pairs sit between 0.3 and 0.4 (e.g. ciprofloxacin /
+  levofloxacin, 0.39), so leakage at the level of a drug class is reduced, not excluded.
 - Source issues found and reported, not corrected: telithromycin's low-dose rows in Supplementary Data 1 do not follow
-  the stated dosing rule; olanzapine's Cmax in Supplementary Data 1 (0.00009 uM) has no second source in our inputs.
+  the stated dosing rule; olanzapine's Cmax in Supplementary Data 1 (0.00009 uM) has no second source in our inputs;
+  the study's own Tables 2/3 (multiples of unbound Cmax) and Table 4 (MOS-like values) disagree by up to ~2x for some
+  drugs (e.g. asunaprevir 190x vs 126x from Table 4); we use Table 4 throughout and no verdict against 375 changes.
 
 ## Data
 

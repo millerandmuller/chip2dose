@@ -42,8 +42,15 @@ def _log_axis(ax: plt.Axes, values: list[float], pad: float = 4.0) -> None:
     finite = [v for v in values if v is not None and np.isfinite(v) and v > 0]
     ax.set_xscale("log")
     ax.set_xlim(min(finite) / pad, max(finite) * pad)
-    ax.xaxis.set_major_formatter(matplotlib.ticker.FuncFormatter(lambda v, _: _fmt(v)))
+    ax.xaxis.set_major_formatter(matplotlib.ticker.FuncFormatter(lambda v, _: _tick(v)))
     ax.xaxis.set_minor_formatter(matplotlib.ticker.NullFormatter())
+
+
+def _tick(value: float) -> str:
+    """Axis ticks: plain numbers up to 1,000, compact powers of ten above (they collide otherwise)."""
+    if value >= 1e4:
+        return f"1e{int(round(np.log10(value)))}"
+    return _fmt(value)
 
 
 def _fmt(value: float) -> str:
@@ -92,7 +99,8 @@ def pair_view(margins: pd.DataFrame, key_a: str, key_b: str, path: Path) -> Path
 
     threshold = rows[0]["threshold"]
     ax_mar.axvline(threshold, color=BLACK, ls="--", lw=1.5)
-    ax_mar.annotate(f"convention: {threshold:g}", (threshold, 1.45), ha="center", fontsize=12)
+    ax_mar.annotate(f"convention\n{threshold:g}", (threshold, 1.45), xytext=(-6, 0), textcoords="offset points",
+                    ha="right", va="center", fontsize=12)
 
     names = []
     for row in rows:
@@ -101,7 +109,7 @@ def pair_view(margins: pd.DataFrame, key_a: str, key_b: str, path: Path) -> Path
         if clinical.found:
             clinic += f"\n{clinical.label}"
         names.append(f"{row['compound']}\n{clinic}")
-    _log_axis(ax_pot, [v for r in rows for v in (r["pod_low_uM"], r["pod_high_uM"], r["pod_uM"] * (6 if r["censored"] else 1))])
+    _log_axis(ax_pot, [v for r in rows for v in (r["pod_low_uM"], r["pod_high_uM"], r["pod_uM"] * (6 if r["censored"] else 1))], pad=10.0)
     _log_axis(ax_exp, [r["cmax_total_uM"] for r in rows])
     _log_axis(ax_mar, [v for r in rows for v in (r["band_low"], r["band_high"])] + [threshold])
     for ax in axes:
@@ -119,7 +127,9 @@ def pair_view(margins: pd.DataFrame, key_a: str, key_b: str, path: Path) -> Path
     ax_mar.set_title("Margin\nchip free conc. / patient free Cmax")
     ax_mar.set_xlabel("x (bar = 5-95% band)")
 
-    fig.suptitle(f"{rows[0]['compound']} vs {rows[1]['compound']}: a structurally matched pair", fontsize=22, y=1.02)
+    matched = rows[0]["partner_key"] == rows[1].name or rows[1]["partner_key"] == rows[0].name
+    kind = "a published structurally matched pair" if matched else "NOT a published matched pair"
+    fig.suptitle(f"{rows[0]['compound']} vs {rows[1]['compound']}: {kind}", fontsize=22, y=1.02)
     fig.text(0.01, -0.06,
              "Sources: chip MOS-like values and pairs, Ewart et al. Commun Med 2022 (Tables 1, 4; Suppl. Data 1); "
              "clinical labels, FDA DILIrank 2.0. Garside rank 1 = most severe clinical liver injury. "
@@ -144,7 +154,8 @@ def liver_overview(margins: pd.DataFrame, path: Path) -> Path:
     _log_axis(ax, list(m["band_low"]) + list(m["band_high"]) + [m["threshold"].iloc[0]], pad=2.0)
     ax.set_xlabel("Margin (free): chip free concentration / patient free Cmax   (bar = 5-95% band; > = lower bound)")
     handles = [plt.Line2D([], [], color=c, marker="o", lw=0, ms=10, label=f"Garside rank {r}") for r, c in cmap.items()]
-    ax.legend(handles=handles, loc="lower right", frameon=False, title="clinical severity (1 = worst)")
+    ax.legend(handles=handles, loc="upper left", bbox_to_anchor=(1.01, 1.0), frameon=False,
+              title="clinical severity\n(1 = worst)")
     ax.set_title(f"27 Liver-Chip drugs against the free-margin convention of {m['threshold'].iloc[0]:g}")
     return _save(fig, path)
 
@@ -179,7 +190,7 @@ def roc_figure(result: dict, exploratory: dict, path: Path) -> Path:
     ax.set_ylabel("True-positive rate (drugs with DILI concern flagged)")
     ax.set_title(f"Held-out drugs, grouped by matched pair and structure (n = {result['n']}; "
                  f"{result['n_positive']} with concern, {result['n_negative']} without)", fontsize=15)
-    ax.legend(loc="lower right", frameon=False, fontsize=12)
+    ax.legend(loc="upper center", bbox_to_anchor=(0.5, -0.12), frameon=False, fontsize=12, ncol=1)
     ax.set_aspect("equal")
     return _save(fig, path)
 
@@ -214,20 +225,24 @@ def paired_difference_figure(result: dict, exploratory: dict, path: Path) -> Pat
 # --------------------------------------------------------------------------- F6 neural
 
 def neural_figure(neural_margins: pd.DataFrame, n_chemicals: int, n_active: int, path: Path) -> Path:
-    m = neural_margins.sort_values("margin").reset_index(drop=True)
-    colours = {"AED vs predicted exposure": GREEN, "network EC50 vs clinical Cmax": BLUE}
-    fig, ax = plt.subplots(**VIDEO)
-    for i, row in m.iterrows():
-        colour = colours[row["route"]]
-        ax.plot([row["band_low"], row["band_high"]], [i, i], color=colour, lw=6, alpha=0.4)
-        ax.plot(row["margin"], i, "o", color=colour, ms=10)
-    ax.set_yticks(range(len(m)))
-    ax.set_yticklabels(m["compound"], fontsize=11)
-    _log_axis(ax, list(m["band_low"]) + list(m["band_high"]), pad=2.0)
-    ax.set_xlabel("Margin (bar = 5-95% band). AED route: AED / predicted exposure; drug route: EC50 / free Cmax")
-    handles = [plt.Line2D([], [], color=c, marker="o", lw=0, ms=10, label=k) for k, c in colours.items()]
-    ax.legend(handles=handles, loc="lower right", frameon=False)
-    ax.set_title(f"Neural network-formation chip (EPA MEA): {len(m)} margins where exposure data exist\n"
-                 f"({n_chemicals} chemicals tested, {n_active} active; no published threshold for this endpoint)",
-                 fontsize=16)
+    """Two panels, because the two routes measure different things and must not share an axis."""
+    routes = [
+        ("network EC50 vs clinical Cmax", BLUE, "EC50 / free clinical Cmax (x)", "Pharmaceuticals: chip vs patient exposure"),
+        ("AED vs predicted exposure", GREEN, "AED / ExpoCast predicted exposure (x)", "Environmental chemicals: chip-derived dose vs population exposure"),
+    ]
+    fig, axes = plt.subplots(1, 2, **VIDEO, gridspec_kw={"wspace": 0.55})
+    for ax, (route, colour, xlabel, title) in zip(axes, routes):
+        m = neural_margins[neural_margins["route"] == route].sort_values("margin").reset_index(drop=True)
+        for i, row in m.iterrows():
+            ax.plot([row["band_low"], row["band_high"]], [i, i], color=colour, lw=6, alpha=0.4)
+            ax.plot(row["margin"], i, "o", color=colour, ms=10)
+        ax.set_yticks(range(len(m)))
+        ax.set_yticklabels(m["compound"], fontsize=12)
+        _log_axis(ax, list(m["band_low"]) + list(m["band_high"]), pad=2.0)
+        ax.set_xlabel(xlabel + "   bar = 5-95% band", fontsize=13)
+        ax.set_title(f"{title}\n({len(m)} compounds)", fontsize=15)
+    n_unique = neural_margins["compound"].nunique()
+    fig.suptitle(f"Neural network-formation chip (EPA MEA): {n_chemicals} chemicals tested, {n_active} active, "
+                 f"{n_unique} with an exposure comparator.\nNo published threshold exists for this endpoint; no verdicts.",
+                 fontsize=17, y=1.03)
     return _save(fig, path)
