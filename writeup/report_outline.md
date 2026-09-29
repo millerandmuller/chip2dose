@@ -37,13 +37,15 @@ clinical liver injury until it is set against human exposure. The authors report
 vitro toxicity values of drugs showed little ability for distinguishing DILI concern classes on their own",
 and that "the ratio of in vivo Cmax to lowest functional in vitro toxicity of each compound" separates
 clinical DILI classes with ROC AUC up to 96 %. Both statements come from a retrospective analysis of the
-full set of 241 drugs, reported as point estimates without confidence intervals; the paper describes no
-cross-validation, no held-out test set and no structure-based grouping of the drugs. This is not a criticism
-of that work: an in-sample analysis is the right way to establish that a relationship exists, and it is what
-the paper set out to do.
+full set of 241 drugs, reported as point estimates without confidence intervals, without a pre-specified
+analysis set, and without structure-based grouping of the drugs. This is not a criticism of that work:
+a retrospective analysis is the right way to establish that a relationship exists, and it is what the paper
+set out to do. (The abstract additionally reports a predicted-Cmax PBK arm reaching "up to 91 %
+prospectively", which is a separate claim from the ratio compared here.)
 
-What this work adds on that benchmark is an out-of-sample test of the same relationship, and the dose layer
-that sits on top of it. Three things are new here. First, the comparison is pre-registered: the analysis
+What this work adds on that benchmark is a pre-registered evaluation of the same relationship, out-of-fold
+estimation for the arms that are actually fitted, and the dose layer that sits on top of both. Three things
+are new here. First, the comparison is pre-registered: the analysis
 plan and the fold assignment were committed to `validation/preregistration.json` and `validation/split.csv`
 before the first evaluation was run, and the code refuses to evaluate if either has since changed
 (`validation/code_freeze.json` additionally fingerprints the 36 functions and constants that execute the
@@ -55,21 +57,30 @@ than a contrast of separately estimated AUCs. Beyond the benchmark, the margin i
 equivalent daily dose in mg rather than a ratio, and the identical pipeline is applied to a second organ
 (neural network formation on microelectrode arrays).
 
-### 2.1 In-sample and out-of-sample on the same benchmark
+### 2.1 The published ratio on a pre-registered set, with an interval
 
 The paper reports two AUC figures for its ratio, one per class definition. Those two definitions are
 reproduced here class for class, which makes each figure directly comparable with one of our endpoints:
 
-| Class definition (the paper's wording) | Geci et al., retrospective, 241 drugs | This work, grouped out-of-sample split |
+| Class definition (the paper's wording) | Geci et al., retrospective, 241 drugs | This work, pre-registered set, grouped CI |
 |---|---|---|
 | "No- from Most-DILI and Clinical Development Failure drugs" | 96 % (point estimate, no CI) | **0.938 [0.884, 0.980]** (n = 152, 132 groups) |
 | "No- from Less-, Most-DILI and Clinical Development Failures" | 90 % (point estimate, no CI) | **0.889 [0.829, 0.940]** (n = 220, 177 groups) |
 
-Both of our confidence intervals contain the published point estimate. The headline finding of this
-comparison is therefore that the published in-sample result holds up when the ratio is re-estimated on
-held-out drugs under structure-grouped folds — it does not depend on the drugs the relationship was found
-in. The two comparisons are not like for like, and the report states the three reasons in this same
-paragraph: our analysis covers 220 of the 241 drugs (oral only, one row per molecule, non-ambiguous label);
+The section states plainly what kind of agreement this is, because the estimator on both sides is the same:
+the paper's ratio has no fitted parameters, and neither does the `margin alone` arm reported here
+(`src/validate.py`, `kind="score"`). The ratio is not re-estimated on held-out drugs, because there is
+nothing in it to estimate, and the pre-registered split therefore cannot move the point estimate — it fixes
+which drugs are in the set and it defines the groups the bootstrap resamples. That identity of estimator is
+what makes the two columns comparable at all, and it is the reason the agreement is worth reporting: a fixed
+ratio carried from the paper's 241 drugs to a set and a plan committed in advance, now with an interval
+around it and with a paired comparison against potency alone that the retrospective analysis does not
+report. Held-out estimation in this work belongs to the learned arms of Section 7.2, where the
+pre-registered primary comparison (+0.243 [+0.152, +0.340]) sits between two fitted models.
+
+Both of our confidence intervals contain the published point estimate. The two comparisons are not like for
+like, and the report states the three reasons in this same paragraph: our analysis covers 220 of the 241
+drugs (oral only, one row per molecule, non-ambiguous label);
 the published values carry no interval, so "contains their point estimate" is a one-sided statement about
 our uncertainty and not about theirs; and the two ratios are not built from the same assays, because the
 paper's ratio uses functional toxicity only ("Functional toxicity refers to all in vitro toxicity data
@@ -79,9 +90,9 @@ work; it is not reported here, because adding an arm after the first evaluation 
 pre-registration this comparison rests on.
 
 One further reading of the same table is worth stating, because a reviewer who has read only the abstract
-will arrive with the figure 96 % in mind: setting that 96 % against our 0.889 would suggest a drop of about
-0.07 from out-of-sample validation. It is an artefact of comparing two different class definitions. The
-matched comparisons are the two rows above.
+will arrive with the figure 96 % in mind: setting that 96 % against our 0.889 would suggest that a grouped,
+pre-registered evaluation cost about 0.07. It is an artefact of comparing two different class definitions.
+The matched comparisons are the two rows above.
 
 What does not survive as a novelty claim is the direction of the finding itself, and the report says so
 where the result is first presented (Section 7.2): the ordering of the arms, and the size of the paired
@@ -121,14 +132,15 @@ grouping and the split hash. Then what the freeze does and does not cover, from 
 
 - **7.1** Liver-Chip: 27 drugs, the pair views, the hero pair as a daily dose (`results/dose_view.png`).
 - **7.2** The benchmark: arms table, ROC (`results/roc.png`), paired differences
-  (`results/paired_difference.png`), and the in-sample/out-of-sample comparison from Section 2.1.
+  (`results/paired_difference.png`), and the published-ratio comparison from Section 2.1.
 - **7.3** The exploratory exposure-alone analysis, labelled as added after the first run.
 - **7.4** The second organ, and the measurement of the field's bottleneck: 136 chemicals tested, 82
   active, 21 with any public human exposure comparator (13 predicted by the EPA, 9 measured clinical
   Cmax, simvastatin in both — 22 route rows for 21 chemicals). Figure: `results/neural_coverage.png`,
-  table: `results/neural_coverage.csv`, both generated. The point for the reader: for roughly three
-  quarters of the chemicals this chip has already measured, nobody can take the step from
-  concentration to dose, and the missing half is the published exposure value, not the chip.
+  table: `results/neural_coverage.csv`, both generated. The point for the reader: for 61 of the 82
+  active chemicals — and for 115 of all 136 the chip has measured — the step from concentration to dose
+  cannot be taken from any exposure source in these inputs, and the missing half is the published
+  exposure value, not the chip.
 
 ## 8. Failures, limitations and bias *(outline)*
 

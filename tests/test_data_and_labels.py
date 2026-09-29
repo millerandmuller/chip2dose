@@ -65,9 +65,45 @@ def test_neural_table_covers_every_chemical_and_issues_no_verdict():
     assert (margins["verdict"] == neural.NO_CONVENTION).all()
 
 
+# The counts Beat 5 speaks aloud and the README prints as a finding. Literals on purpose: the test above
+# re-derives them from the same tables `coverage()` counted, so it cannot see input loss (dropping a
+# measured row still reconciles). These do. A data-vintage change must turn this red, so that a recorded
+# script is revisited rather than silently contradicted.
+SPOKEN_NEURAL_COUNTS = {
+    "chemicals tested": 136,
+    "active": 82,
+    "with a human exposure comparator": 21,
+    "via predicted exposure": 13,
+    "via measured exposure": 9,
+    "in both routes": 1,
+}
+SPOKEN_MEASURED_ROUTE = {
+    "17beta-Estradiol", "CP-457920", "Diphenhydramine hydrochloride", "Folic acid", "Lovastatin",
+    "Pravastatin sodium", "Reserpine", "Simvastatin", "Tamoxifen",
+}
+
+
+def test_the_neural_counts_the_script_speaks_are_pinned_to_literals():
+    potency, margins = neural.margin_table()
+    coverage = neural.coverage(potency, margins)
+    assert dict(zip(coverage["stage"].str.strip(), coverage["count"])) == SPOKEN_NEURAL_COUNTS
+    assert coverage.attrs["check"] == "13 + 9 = 22 route rows for 21 chemicals (1 in both)"
+
+
+def test_the_measured_exposure_route_is_pinned_to_its_compounds():
+    """Mirror of the AED test for the other route: which nine chemicals, not just how many."""
+    _, margins = neural.margin_table()
+    assert set(margins.loc[margins["route"] == neural.DRUG_ROUTE, "compound"]) == SPOKEN_MEASURED_ROUTE
+    both = (set(margins.loc[margins["route"] == neural.DRUG_ROUTE, "compound"])
+            & set(margins.loc[margins["route"] == neural.AED_ROUTE, "compound"]))
+    assert both == {"Simvastatin"}
+
+
 def test_neural_coverage_counts_reconcile_with_the_margin_table():
-    """The funnel is a measurement: every count is re-derived here from the tables, not asserted."""
-    from src import neural
+    """The funnel is a measurement: every count is re-derived here from the tables, not asserted.
+
+    Scope: internal consistency only. Input loss is caught by the pinned literals above, not here.
+    """
     potency, margins = neural.margin_table()
     coverage = neural.coverage(potency, margins)
     counts = dict(zip(coverage["stage"].str.strip(), coverage["count"]))
@@ -83,9 +119,7 @@ def test_neural_coverage_counts_reconcile_with_the_margin_table():
 
 def test_neural_coverage_refuses_counts_that_do_not_reconcile():
     """A comparator for a chemical with no active potency value is a counting error, not a result."""
-    import pandas as pd
     import pytest
-    from src import neural
     potency, margins = neural.margin_table()
     broken = margins.copy()
     broken.loc[broken.index[0], "compound"] = "not-a-tested-chemical"

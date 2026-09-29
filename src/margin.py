@@ -137,11 +137,15 @@ def _bad(value: float | None) -> bool:
     return value is None or not np.isfinite(value) or value <= 0
 
 
-def _unusable(q: Quantity | None, what: str) -> str | None:
+def _unusable(q: Quantity | None, what: str, missing: str | None = None) -> str | None:
     """Why a quantity cannot be used, naming the actual problem. A value that was supplied and is out
-    of range is a different fact from one that was never supplied, and a reader acts on it differently."""
+    of range is a different fact from one that was never supplied, and a reader acts on it differently.
+
+    Two nouns, because one does not fit both frames: "no usable clinical exposure" is right when nothing
+    was given, but "the usable clinical exposure given is zero" is not a sentence about a supplied value.
+    """
     if q is None or any(v is None for v in (q.point, q.low, q.high)):
-        return f"no {what}; no default is substituted"
+        return f"no {missing or what}; no default is substituted"
     if not all(np.isfinite(v) for v in (q.point, q.low, q.high)):
         return f"the {what} given is not a finite number (out of the range this tool can represent)"
     if any(v <= 0 for v in (q.point, q.low, q.high)):
@@ -153,7 +157,8 @@ def invalid_reason(inp: MarginInput) -> str | None:
     """Why no margin can be computed, in the words a scientist would use; None if inputs are usable."""
     if inp.fu_medium is None:
         return "fraction unbound in the test medium is missing (use 1 for nominal = free)"
-    reason = _unusable(inp.cmax, "usable clinical exposure (Cmax)") or _unusable(inp.pod, "point of departure")
+    reason = (_unusable(inp.cmax, "clinical exposure (Cmax)", "usable clinical exposure (Cmax)")
+              or _unusable(inp.pod, "point of departure"))
     if reason:
         return reason
     for label, q in (("plasma", inp.fu_plasma), ("medium", inp.fu_medium)):

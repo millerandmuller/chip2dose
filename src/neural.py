@@ -159,10 +159,12 @@ def coverage(potency: pd.DataFrame, margins: pd.DataFrame) -> pd.DataFrame:
         ("  in both routes", len(both), "both", ", ".join(both) or "none"),
     ]
     frame = pd.DataFrame(rows, columns=["stage", "count", "comparator", "detail"])
-    # Completeness check: per-route rows must reconcile with unique chemicals and with the table.
+    # Internal consistency only, and deliberately not called a completeness check: every number here is
+    # counted from `margins`, so a row missing from the input reconciles just as well as one that is
+    # present. The counts the video speaks are pinned to literals in tests/test_data_and_labels.py.
     reconciles = len(aed) + len(drug) - len(both) == len(aed | drug) == margins["compound"].nunique()
     if not (reconciles and len(margins) == len(aed) + len(drug)):
-        raise ValueError("neural coverage counts do not reconcile with the margin table")
+        raise ValueError("neural coverage counts are not self-consistent with the margin table")
     frame.attrs["check"] = (f"{len(aed)} + {len(drug)} = {len(margins)} route rows for "
                             f"{len(aed | drug)} chemicals ({len(both)} in both)")
     return frame

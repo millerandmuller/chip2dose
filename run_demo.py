@@ -170,7 +170,9 @@ def run_readout(args: argparse.Namespace) -> int:
     inp = margin.MarginInput(
         name=args.name,
         pod=margin.point_with_default(args.readout, "chip POD (user)")[0],
-        cmax=margin.Quantity.exact(args.cmax, "clinical Cmax (user)") if args.cmax else None,
+        # `is not None`, not truthiness: --cmax 0 is a supplied value the margin engine must reject as
+        # zero-or-negative, not silently become the "no Cmax given" case.
+        cmax=None if args.cmax is None else margin.Quantity.exact(args.cmax, "clinical Cmax (user)"),
         fu_plasma=fu_plasma,
         fu_medium=margin.Quantity.exact(args.fu_medium, "user fu medium"),
         pod_censored=args.censored,

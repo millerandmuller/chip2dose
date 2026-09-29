@@ -246,17 +246,21 @@ def roc_figure(result: dict, exploratory: dict, path: Path) -> Path:
     ax.plot([0, 1], [0, 1], color=GREY, lw=1, alpha=0.5)
     ax.set_xlabel("False-positive rate (drugs without clinical DILI concern flagged)")
     ax.set_ylabel("True-positive rate (drugs with DILI concern flagged)")
-    ax.set_title(f"Held-out drugs, grouped by matched pair and structure (n = {result['n']}; "
+    # "Held-out" would be false for the score arms on this plot: a fixed ratio has nothing to fit, so the
+    # pre-registered split fixes the set and the bootstrap groups, not the point estimate. Name the set.
+    ax.set_title(f"Pre-registered evaluation set, grouped by matched pair and structure (n = {result['n']}; "
                  f"{result['n_positive']} with concern, {result['n_negative']} without)", fontsize=15)
     # Lower right: empty by construction in a ROC plot, so the legend costs no curve area.
     ax.legend(loc="lower right", frameon=True, framealpha=0.95, edgecolor=GREY, fontsize=13,
               borderpad=0.7, labelspacing=0.5, handlelength=2.6)
     ax.set_aspect("equal")
+    # Two footnote lines, not three: a third needs a bigger bottom margin, which costs ~8% of the plot
+    # area that round 4 bought back for video legibility.
     fig.text(0.01, 0.005,
              f"Dose rule of thumb: flagged when the daily dose is >= {config.RULE_OF_THUMB_DOSE_MG:g} mg and "
              f"logP >= {config.RULE_OF_THUMB_LOGP:g}. LR = logistic regression. Brackets are 95% CIs (group bootstrap)."
-             "\nIn-sample comparator: Geci et al. 2026 report 90% for this class definition, retrospectively on all "
-             "241 drugs, with no hold-out and no interval.",
+             "\nPublished comparator: Geci et al. 2026 report 90% for this class definition, retrospectively on all "
+             "241 drugs, with no interval. Their ratio is parameter-free, and so are the margin arms here.",
              fontsize=11, color=GREY, linespacing=1.4)
     return _save(fig, path)
 
@@ -281,7 +285,9 @@ def paired_difference_figure(result: dict, exploratory: dict, path: Path) -> Pat
     ax.axhline(n - n_pre - 0.5, color=GREY, lw=1, ls=":")
     ax.set_yticks(range(n))
     ax.set_yticklabels([r[0].replace(" minus ", "\n  minus ") for r in rows][::-1], fontsize=11)
-    ax.set_xlabel("Paired difference in ROC AUC on identical held-out folds (95% CI, group bootstrap)")
+    # Secondary rows compare parameter-free score arms, so "held-out folds" would not be true of every row;
+    # what every row does share is that both arms are scored on the same drugs in the same bootstrap draw.
+    ax.set_xlabel("Paired difference in ROC AUC, both arms scored on the same drugs (95% CI, group bootstrap)")
     ax.set_title("Primary comparison (red) and secondary comparisons were pre-registered;\n"
                  "grey rows were added after the first evaluation and are exploratory", fontsize=16)
     ax.set_xlim(min(-0.05, min(r[2] for r in rows) - 0.02), max(r[3] for r in rows) + 0.25)

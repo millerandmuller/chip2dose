@@ -104,32 +104,42 @@ exposure is the benchmark authors' own published finding, not ours: they report 
 little ability for distinguishing DILI concern classes on their own", and ROC AUC up to 96 % for the ratio of clinical
 Cmax to lowest in-vitro toxicity, in a retrospective analysis of all 241 drugs (Geci et al. 2026,
 [doi:10.1007/s00204-026-04305-2](https://doi.org/10.1007/s00204-026-04305-2)). What this repository adds on that
-benchmark is the out-of-sample test of their ratio, under a plan and a split committed before the first evaluation, with
-structure-grouped folds and paired confidence intervals.
+benchmark is a pre-registered evaluation of their ratio — the set of drugs and the analysis plan committed before the
+first evaluation, a structure-grouped bootstrap interval, and a paired comparison against potency alone on identical
+drugs — together with the learned, out-of-fold arms and the dose layer that sits on top of them.
 
-### Does the published number survive a structure-grouped split?
+### The published ratio, on a pre-registered set and with an interval
 
 Geci et al. report two AUCs for their ratio, one per class definition. We reproduce both class definitions exactly, so
 each of their figures has a counterpart here:
 
-| Class definition (their wording) | Geci et al.: retrospective, 241 drugs | Here: pre-registered, grouped, held-out |
+| Class definition (their wording) | Geci et al.: retrospective, 241 drugs | Here: pre-registered set, structure-grouped CI |
 |---|---|---|
 | "No- from Most-DILI and Clinical Development Failure drugs" | 96 % (point estimate, no CI) | **0.938 [0.884, 0.980]** (n = 152, 132 groups) |
 | "No- from Less-, Most-DILI and Clinical Development Failures" | 90 % (point estimate, no CI) | **0.889 [0.829, 0.940]** (n = 220, 177 groups) |
 
-Both of our intervals contain their published value: the relationship holds on drugs the model never saw, with matched
-pairs, identical molecules and structural neighbours (Morgan Tanimoto >= 0.4) kept out of the training folds. The two
-columns are not like for like, in three ways that all belong in this same paragraph: we cover 220 of the 241 drugs
-(oral only, one row per molecule, non-ambiguous label); their values carry no interval, so "contains their value" is a
-statement about our uncertainty and not about theirs; and the two ratios are not built from the same assays, because
-their ratio uses functional toxicity only ("Functional toxicity refers to all in vitro toxicity data except BSEP
-inhibition") while our lowest POD is the minimum over all available assays, BSEP included. A BSEP-excluded margin is
-listed under future work rather than added here: a new arm after the first evaluation would break the pre-registration
-this comparison rests on.
+What kind of agreement this is turns on one fact, so it comes first: their ratio has no fitted parameters, and neither
+does ours. It is the same fixed log-ratio of exposure to lowest point of departure, scored the same way, and that
+identity is exactly what makes the two columns comparable. Nothing in this table is held out, because here there is
+nothing to fit: the pre-registered split cannot move either point estimate. What the pre-registration and the grouping
+buy on these rows is three other things: the drugs and the analysis plan were fixed before the first evaluation, so the
+inclusion filters could not be chosen to suit the answer; the interval comes from a bootstrap that resamples whole
+groups (matched pairs, the same molecule, structural neighbours at Morgan Tanimoto >= 0.4), so near-duplicate drugs
+cannot narrow it; and the same drugs carry a paired comparison against potency alone, which the published retrospective
+analysis does not report. Held-out estimation in this repository belongs to the learned arms, where the pre-registered
+primary comparison (+0.24 [+0.15, +0.34]) sits between two fitted models.
+
+Both of our intervals contain their published value. The two columns are not like for like, in three ways that all
+belong in this same paragraph: we cover 220 of the 241 drugs (oral only, one row per molecule, non-ambiguous label);
+their values carry no interval, so "contains their value" is a statement about our uncertainty and not about theirs;
+and the two ratios are not built from the same assays, because their ratio uses functional toxicity only ("Functional
+toxicity refers to all in vitro toxicity data except BSEP inhibition") while our lowest POD is the minimum over all
+available assays, BSEP included. A BSEP-excluded margin is listed under future work rather than added here: a new arm
+after the first evaluation would break the pre-registration this comparison rests on.
 
 One comparison to avoid, because the 96 % is the number an abstract-reader remembers: setting that 96 % against our
-0.889 suggests a drop of about 0.07 from out-of-sample validation. It is an artefact of comparing two different class
-definitions. The matched rows above are the comparison.
+0.889 suggests that a grouped, pre-registered evaluation cost about 0.07. It is an artefact of comparing two different
+class definitions. The matched rows above are the comparison.
 
 ## Findings we report against ourselves
 
@@ -148,9 +158,9 @@ definitions. The matched rows above are the comparison.
 - **Neural application — the exposure half is the bottleneck, and we counted it.** Of 136 chemicals tested on the
   network-formation chip, 82 are active, and **21 have any public human exposure value to compare against**: 13 through
   the EPA's predicted population exposure, 9 through a measured clinical Cmax, simvastatin through both (13 + 9 = 22
-  route rows for 21 chemicals). So for roughly three quarters of the chemicals this chip has already measured, the
-  step from concentration to dose cannot be taken by anyone — not because the chip data are missing, but because the
-  published exposure half is. The counts are generated, not asserted: `results/neural_coverage.csv` and
+  route rows for 21 chemicals). So for 61 of the 82 active chemicals — and for 115 of all 136 this chip has already
+  measured — the step from concentration to dose cannot be taken from any exposure source in these inputs, not because
+  the chip data are missing, but because the published exposure half is. The counts are generated, not asserted: `results/neural_coverage.csv` and
   `neural_coverage.png`. Margins are reported for those 21 only, in two separate panels because the two routes measure
   different things and are never pooled. No published threshold exists for this endpoint, so no verdict is issued.
 - The literature benchmark's lowest POD is the minimum over however many assays were run on a drug; the number of
