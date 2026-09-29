@@ -1,0 +1,76 @@
+{
+  "question": "Does an exposure-aware model separate clinical DILI outcomes better than potency alone?",
+  "data": "Geci et al. 2026 integrated table (pinned commit, see data/sources.json), oral drugs only",
+  "inclusion": "lowest in-vitro POD, total Cmax and a DILI label present; 'Ambiguous' excluded; one row per molecule (first row in the authors' file order when a molecule appears at several doses)",
+  "n_drugs": 220,
+  "n_positive_primary": 172,
+  "n_negative_primary": 48,
+  "primary_endpoint": "DILIrank binary convention: vMost + vLess + clinical-development DILI failures = 1, vNo = 0",
+  "secondary_endpoint": "narrow: vMost + clinical-development failures = 1, vNo = 0 (vLess excluded)",
+  "arms": [
+    "potency alone",
+    "rule of thumb (dose >= 100 mg, logP >= 3)",
+    "margin alone (total)",
+    "margin alone (free)",
+    "learned, potency-only features (LR)",
+    "learned, exposure-aware features (LR)",
+    "learned, potency-only features (GB)",
+    "learned, exposure-aware features (GB)"
+  ],
+  "features_potency_only": [
+    "log_pod",
+    "log_nonbsep_pod",
+    "log_cytotox",
+    "log_bsep_ic50"
+  ],
+  "features_exposure_aware": [
+    "log_pod",
+    "log_nonbsep_pod",
+    "log_cytotox",
+    "log_bsep_ic50",
+    "log_cmax",
+    "log_dose",
+    "logp",
+    "log_fu",
+    "log_margin_total",
+    "log_margin_free"
+  ],
+  "primary_comparison": [
+    "learned, exposure-aware features (LR)",
+    "learned, potency-only features (LR)"
+  ],
+  "secondary_comparisons": [
+    [
+      "learned, exposure-aware features (GB)",
+      "learned, potency-only features (GB)"
+    ],
+    [
+      "margin alone (free)",
+      "potency alone"
+    ],
+    [
+      "margin alone (total)",
+      "potency alone"
+    ],
+    [
+      "learned, exposure-aware features (LR)",
+      "rule of thumb (dose >= 100 mg, logP >= 3)"
+    ]
+  ],
+  "statistic": "paired difference in ROC AUC on identical folds; 95% CI from a group-level bootstrap (2000 draws) of the repeat-averaged out-of-fold scores",
+  "outcome_cases": [
+    "1: paired difference positive, CI excludes zero -> claim stands",
+    "2: paired difference positive, CI includes zero -> directional only, reported as not significant",
+    "3: paired difference <= 0 -> reported as a negative result"
+  ],
+  "grouping": "connected components of: matched pairs (Ewart et al. Table 1), same molecule, Morgan r=2 2048-bit Tanimoto >= 0.4",
+  "n_groups": 177,
+  "largest_group": 5,
+  "cv": "20 repeats of 5-fold grouped CV, seed 20260929",
+  "models": {
+    "lr": "median imputation + missing indicators, standardised, L2 logistic regression C=1.0, no tuning",
+    "gb": "HistGradientBoosting, 150 iterations, learning rate 0.05, 8 leaves, min 10 per leaf, no tuning"
+  },
+  "reporting_rule": "classifier probabilities appear only inside validation figures; never as per-compound scores",
+  "split_sha256": "7fa9792d2b8cb3940ea9280d87b26f9d51663deec99aa2967d45f234d5b16d2e"
+}
