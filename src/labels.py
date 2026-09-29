@@ -27,5 +27,10 @@ def dilirank_label(name: str) -> ClinicalLabel:
         return ClinicalLabel(False, name, "", None, NOT_FOUND)
     row = hit.iloc[0]
     severity = int(row["severity"]) if str(row["severity"]).isdigit() else None
-    text = f"DILIrank 2.0: {row['label']} (severity class {row['severity']}, {row['LabelSection']})"
+    section = str(row["LabelSection"])
+    if section.strip().lower() == "no match":
+        detail = f"severity class {row['severity']}; no matching liver text in the drug label, as published in DILIrank"
+    else:
+        detail = f"severity class {row['severity']}, {section}"
+    text = f"DILIrank 2.0: {row['label']} ({detail})"
     return ClinicalLabel(True, row["compound"], row["label"], severity, text)

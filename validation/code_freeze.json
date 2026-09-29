@@ -1,0 +1,14 @@
+{
+  "note": "Added in review round 2 (2026-09-28). Fingerprints of analysis code that the pre-registration describes only in words. Values are those of pre-registration commit a76e7e9; verified byte-identical to that commit when this file was written. load_verified_split refuses to evaluate on any drift.",
+  "commit": "a76e7e9",
+  "fingerprints": {
+    "src/validate.py:BOOTSTRAP_SEED": "6ddd35e093529eb32a991336b229de52229f47a2b2adf72ae4194012c873c230",
+    "src/validate.py:ARMS": "b0a5b9bff62b67537c703f6ad2011e67b82943dfd4d63f754d3f8bb2860fc92f",
+    "src/validate.py:build_model": "d364db3519e54d2ea7812e42de8d37576e5f07696fe8de5852290b1c7d067d26",
+    "src/validate.py:out_of_fold_scores": "962e24fd6f9567749bda4ad81198adec9c9ec6d5f278888f9edb2daecf4660d1",
+    "src/validate.py:group_bootstrap": "b90a0e194a14d94689246d8313eaf4ffe99bbd19e7f841a3486df426bcd324f7",
+    "src/validate.py:ci": "597ceefeedc81149b384324b10e0ce863902a6960e9bdff9d62aef8d73264597",
+    "src/config.py:RULE_OF_THUMB_DOSE_MG": "5b59a827cd64e4109cee46f0e30e256b6550c1aa0fb6e7388644188f54b3bf23",
+    "src/config.py:RULE_OF_THUMB_LOGP": "b586faf1da195279f9dcd5701fa34944dcd25a2c105099a0b8d9b8f04fc8e7c9"
+  }
+}

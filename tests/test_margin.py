@@ -122,3 +122,18 @@ def test_both_donor_rule_matches_published_column():
     assert pod.combine_donors([0.03, 0.1], [False, False]) == (0.03, False)
     assert pod.combine_donors([3.0, 10.0], [True, True]) == (10.0, True)
     assert pod.combine_donors([7.0, 15.0], [True, False]) == (15.0, False)
+
+
+def test_point_outside_its_own_range_or_missing_medium_fu_gives_no_margin():
+    bad = margin.MarginInput("x", margin.Quantity(1e9, 1.0, 2.0, "pod"), margin.Quantity.exact(1.0, "cmax"),
+                             margin.Quantity.exact(0.1, "fu"), margin.Quantity.exact(1.0, "m"))
+    assert margin.compute(bad, FREE_375).verdict == margin.NO_MARGIN
+    missing = _input()
+    missing.fu_medium = None
+    assert margin.compute(missing, FREE_375).verdict == margin.NO_MARGIN
+
+
+def test_dose_relation_wording():
+    assert "1.4x more than the point estimate" in margin.dose_relation(10, 5, 20, 14)
+    assert "about the chip-derived dose" in margin.dose_relation(10, 5, 20, 10)
+    assert "no comparison possible" in margin.dose_relation(10, 5, 20, 0)

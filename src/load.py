@@ -23,6 +23,7 @@ ALIASES = {
     "sitaxentan": "sitaxsentan",
     "beta-estradiol": "estradiol",
     "17beta-estradiol": "estradiol",
+    "paracetamol": "acetaminophen",
 }
 
 

@@ -170,10 +170,15 @@ def run_readout(args: argparse.Namespace) -> int:
     for threshold in (config.THRESHOLDS["liver_free_375"], config.THRESHOLDS["liver_total_50"]):
         result = margin.compute(inp, threshold)
         print(result.line)
-    if result.equivalent_dose_mg is not None:
+    if args.dose_mg is not None and result.equivalent_dose_mg is None:
+        print(f"No equivalent daily dose: --dose-mg {args.dose_mg:g} is not a usable positive dose, "
+              "or no margin could be computed.")
+    elif result.equivalent_dose_mg is not None:
         lo, hi = result.equivalent_dose_band
-        print(f"Equivalent daily dose: {result.equivalent_dose_mg:,.3g} mg (band {lo:,.3g}-{hi:,.3g} mg) "
-              f"against {args.dose_mg:g} mg (linear PK assumed).")
+        bound = ">" if args.censored else ""
+        note = " (lower bound: no toxicity was seen up to the readout)" if args.censored else ""
+        print(f"Chip-derived daily dose: {bound}{result.equivalent_dose_mg:,.3g} mg (band {bound}{lo:,.3g}-{bound}{hi:,.3g} mg) "
+              f"against {args.dose_mg:g} mg, linear PK assumed{note}.")
     for note in result.assumptions:
         print(f"  assumption: {note}")
     print("Thresholds are Liver-Chip conventions (Ewart et al. 2022); for another organ, read the margin, not the verdict.")
@@ -182,9 +187,10 @@ def run_readout(args: argparse.Namespace) -> int:
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    parser.add_argument("--compound", help="describe one compound and exit")
-    parser.add_argument("--pair", nargs=2, metavar=("DRUG_A", "DRUG_B"), help="render one extra pair view and exit")
-    parser.add_argument("--readout", type=float, metavar="POD_UM", help="your chip's lowest toxic concentration (uM)")
+    mode = parser.add_mutually_exclusive_group()
+    mode.add_argument("--compound", help="describe one compound and exit")
+    mode.add_argument("--pair", nargs=2, metavar=("DRUG_A", "DRUG_B"), help="render one extra pair view and exit")
+    mode.add_argument("--readout", type=float, metavar="POD_UM", help="your chip's lowest toxic concentration (uM)")
     parser.add_argument("--cmax", type=float, metavar="UM", help="with --readout: clinical total Cmax (uM)")
     parser.add_argument("--fu-plasma", type=float, help="with --readout: fraction unbound in plasma")
     parser.add_argument("--fu-medium", type=float, default=1.0, help="with --readout: fraction unbound in chip medium (default 1)")
@@ -195,13 +201,16 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     warnings.simplefilter("ignore")
 
+    if args.compound is not None and not args.compound.strip():
+        print("--compound needs a drug name.")
+        return 1
     if args.readout is not None:
         return run_readout(args)
     problems = input_problems()
     if problems:
         print("Input data are missing or changed; run `make data` first:\n  " + "\n  ".join(problems))
         return 2
-    if args.compound:
+    if args.compound is not None:
         print("\n".join(compound.describe(args.compound)))
         return 0
     if args.pair:

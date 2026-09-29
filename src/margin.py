@@ -134,6 +134,8 @@ def _bad(value: float | None) -> bool:
 
 def invalid_reason(inp: MarginInput) -> str | None:
     """Why no margin can be computed, in the words a scientist would use; None if inputs are usable."""
+    if inp.fu_medium is None:
+        return "fraction unbound in the test medium is missing (use 1 for nominal = free)"
     if inp.cmax is None or _bad(inp.cmax.point) or _bad(inp.cmax.low) or _bad(inp.cmax.high):
         return "no usable clinical exposure (Cmax); no default is substituted"
     if inp.pod is None or _bad(inp.pod.point) or _bad(inp.pod.low) or _bad(inp.pod.high):
@@ -141,8 +143,11 @@ def invalid_reason(inp: MarginInput) -> str | None:
     for label, q in (("plasma", inp.fu_plasma), ("medium", inp.fu_medium)):
         if q is not None and (_bad(q.low) or _bad(q.high) or q.high > 1.0 or q.low > q.high):
             return f"fraction unbound in {label} must lie in (0, 1]; got {q.low:g}-{q.high:g}"
-    if inp.pod.low > inp.pod.high or inp.cmax.low > inp.cmax.high:
-        return "a range has its low end above its high end"
+    quantities = [inp.pod, inp.cmax, inp.fu_medium] + ([inp.fu_plasma] if inp.fu_plasma is not None else [])
+    for q in quantities:
+        # Relative tolerance: the same published value can be parsed from two cells with different last digits.
+        if _bad(q.point) or q.low > q.high or not (q.low * (1 - 1e-9) <= q.point <= q.high * (1 + 1e-9)):
+            return f"{q.source}: the value {q.point:g} must be positive and lie inside its range {q.low:g}-{q.high:g}"
     return None
 
 
@@ -273,3 +278,22 @@ def compute(inp: MarginInput, threshold: Threshold, rng: np.random.Generator | N
         n_assumptions=len(assumptions),
         assumptions=assumptions,
     )
+
+
+def _times(ratio: float) -> str:
+    return f"{ratio:.1f}x" if ratio < 10 else f"{ratio:.0f}x"
+
+
+def dose_relation(dose: float, low: float, high: float, prescribed: float) -> str:
+    """Prescribed dose against the chip-derived dose AND its band; the band decides the wording."""
+    if not all(np.isfinite(v) and v > 0 for v in (dose, low, high, prescribed)):
+        return "no comparison possible (missing or non-positive dose)"
+    if prescribed > high:
+        return f"patients take {_times(prescribed / dose)} the chip-derived dose (above the whole band)"
+    if prescribed < low:
+        return f"patients take {_times(dose / prescribed)} less than the chip-derived dose (below the whole band)"
+    if np.isclose(prescribed, dose, rtol=0.05):
+        return "patients take about the chip-derived dose (inside the band)"
+    side = "less than" if prescribed < dose else "more than"
+    ratio = dose / prescribed if prescribed < dose else prescribed / dose
+    return f"patients take {_times(ratio)} {side} the point estimate, but inside the band"

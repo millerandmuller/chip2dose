@@ -35,6 +35,14 @@ from . import config, load
 
 PREREG = config.VALIDATION / "preregistration.json"
 SPLIT = config.VALIDATION / "split.csv"
+# Added in review round 2: the pre-registration file describes the plan in words, but some of it
+# lives only in code. These fingerprints freeze that code at its state in the pre-registration
+# commit a76e7e9 (verified unchanged when the file was written).
+CODE_FREEZE = config.VALIDATION / "code_freeze.json"
+FROZEN_CODE = {
+    "src/validate.py": ["BOOTSTRAP_SEED", "ARMS", "build_model", "out_of_fold_scores", "group_bootstrap", "ci"],
+    "src/config.py": ["RULE_OF_THUMB_DOSE_MG", "RULE_OF_THUMB_LOGP"],
+}
 
 N_FOLDS = 5
 N_REPEATS = 20
@@ -316,10 +324,34 @@ def preregister(force: bool = False) -> dict:
     return doc
 
 
+def code_fingerprints() -> dict[str, str]:
+    """sha256 of the source text of each frozen constant or function."""
+    import ast
+
+    prints = {}
+    for rel, names in FROZEN_CODE.items():
+        source = (config.ROOT / rel).read_text(encoding="utf-8")
+        for node in ast.parse(source).body:
+            name = None
+            if isinstance(node, ast.Assign) and isinstance(node.targets[0], ast.Name):
+                name = node.targets[0].id
+            elif isinstance(node, ast.FunctionDef):
+                name = node.name
+            if name in names:
+                prints[f"{rel}:{name}"] = sha256_text(ast.get_source_segment(source, node))
+    return prints
+
+
 def load_verified_split(table: pd.DataFrame) -> pd.DataFrame:
-    """Recompute the split AND the analysis plan; both must equal the pre-registered files."""
-    if not PREREG.exists():
-        raise SystemExit("no pre-registration found; run `python -m src.validate --preregister` and commit it first")
+    """Recompute the split, the analysis plan and the frozen code; all must match the files."""
+    for required in (PREREG, SPLIT, CODE_FREEZE):
+        if not required.exists():
+            raise SystemExit(f"{required.name} is missing; the pre-registered validation cannot run without it")
+    frozen = json.loads(CODE_FREEZE.read_text(encoding="utf-8"))["fingerprints"]
+    drifted_code = sorted(k for k in frozen.keys() | code_fingerprints().keys()
+                          if frozen.get(k) != code_fingerprints().get(k))
+    if drifted_code:
+        raise SystemExit(f"code frozen at pre-registration has changed: {', '.join(drifted_code)}; refusing to evaluate")
     doc = json.loads(PREREG.read_text(encoding="utf-8"))
     frame = split_frame(table)
     text = split_csv_text(frame)

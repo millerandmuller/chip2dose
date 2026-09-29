@@ -16,7 +16,7 @@ import numpy as np  # noqa: E402
 import pandas as pd  # noqa: E402
 from sklearn.metrics import roc_curve  # noqa: E402
 
-from . import config, labels  # noqa: E402
+from . import config, labels, margin  # noqa: E402
 
 VERMILLION, BLUE, GREEN, ORANGE, SKY, GREY, BLACK = (
     "#D55E00", "#0072B2", "#009E73", "#E69F00", "#56B4E9", "#7F7F7F", "#000000",
@@ -138,17 +138,6 @@ def pair_view(margins: pd.DataFrame, key_a: str, key_b: str, path: Path) -> Path
     return _save(fig, path)
 
 
-def dose_relation(dose: float, low: float, high: float, prescribed: float) -> str:
-    """Prescribed dose against the chip-derived dose AND its band; the band decides the wording."""
-    if prescribed > high:
-        return f"patients take {prescribed / dose:.0f}x the chip-derived dose (above the whole band)"
-    if prescribed < low:
-        return f"patients take {dose / prescribed:.0f}x less than the chip-derived dose (below the whole band)"
-    side = "less than" if prescribed < dose else "more than"
-    ratio = dose / prescribed if prescribed < dose else prescribed / dose
-    return f"patients take {ratio:.0f}x {side} the point estimate, but inside the band"
-
-
 def dose_view(margins: pd.DataFrame, pairs: pd.DataFrame, key_a: str, key_b: str, path: Path) -> Path:
     """The output in real units: the daily dose at which the chip's toxic concentration is reached,
     next to the dose patients take. Illustrates what the tool returns; it is not the comparative
@@ -168,12 +157,12 @@ def dose_view(margins: pd.DataFrame, pairs: pd.DataFrame, key_a: str, key_b: str
         values += [lo, hi, prescribed]
         ax.plot([lo, hi], [y, y], color=colour, lw=14, alpha=0.3, solid_capstyle="butt")
         ax.plot(dose, y, "o", color=colour, ms=18)
-        ax.annotate(f"chip: harm from ~{_fmt(dose)} mg/day\n(band {_fmt(lo)}-{_fmt(hi)})", (dose, y),
+        ax.annotate(f"chip toxic concentration reached at ~{_fmt(dose)} mg/day\n(band {_fmt(lo)}-{_fmt(hi)})", (dose, y),
                     textcoords="offset points", xytext=(0, 26), ha="center", fontsize=15, color=colour)
         ax.plot(prescribed, y, "D", color=BLACK, ms=16)
         ax.annotate(f"patients: {_fmt(prescribed)} mg/day", (prescribed, y), textcoords="offset points",
                     xytext=(0, -38), ha="center", fontsize=15)
-        ax.annotate(dose_relation(dose, lo, hi, prescribed), (0.99, y + 0.46), xycoords=("axes fraction", "data"),
+        ax.annotate(margin.dose_relation(dose, lo, hi, prescribed), (0.99, y + 0.46), xycoords=("axes fraction", "data"),
                     ha="right", va="center", fontsize=15, color=colour, weight="bold")
 
     names = []
@@ -308,6 +297,11 @@ def neural_figure(neural_margins: pd.DataFrame, n_chemicals: int, n_active: int,
         ax.set_xlabel(xlabel + "   bar = 5-95% band", fontsize=13)
         ax.set_title(f"{title}\n({len(m)} compounds)", fontsize=15)
     n_unique = neural_margins["compound"].nunique()
+    both = sorted(set(neural_margins.loc[neural_margins["route"] == routes[0][0], "compound"])
+                  & set(neural_margins.loc[neural_margins["route"] == routes[1][0], "compound"]))
+    if both:
+        fig.text(0.01, -0.02, f"{', '.join(both)} appears in both panels (both exposure routes exist), so the panels "
+                 f"hold {len(neural_margins)} points for {n_unique} chemicals.", fontsize=12, color=GREY)
     fig.suptitle(f"Neural network-formation chip (EPA MEA): {n_chemicals} chemicals tested, {n_active} active, "
                  f"{n_unique} with an exposure comparator.\nNo published threshold exists for this endpoint; no verdicts.",
                  fontsize=17, y=1.03)

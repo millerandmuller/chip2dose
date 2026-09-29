@@ -6,7 +6,6 @@ import numpy as np
 
 from . import config, labels, liver, load, margin, neural, pod
 
-IV_ONLY = "Given intravenously only: the oral dose rule of thumb does not apply."
 NO_EXPOSURE = "No clinical exposure (Cmax) available for this compound - no margin is computed."
 NO_LITERATURE_CONVENTION = (
     "No convention threshold exists for literature in-vitro PODs; see the validation for how this margin "
@@ -35,6 +34,17 @@ def _chip_lines(key: str) -> list[str]:
         "  " + free.line,
         "  " + total.line,
     ]
+    dose = liver.equivalent_dose(inp, key)
+    if np.isfinite(dose["equivalent_dose_mg"]):
+        relation = margin.dose_relation(dose["equivalent_dose_mg"], dose["equivalent_dose_band_low"],
+                                        dose["equivalent_dose_band_high"], dose["clinical_dose_mg"])
+        lines.append(
+            f"  Chip-derived daily dose: the chip's toxic concentration is reached at {dose['equivalent_dose_mg']:,.3g} mg/day "
+            f"(band {dose['equivalent_dose_band_low']:,.3g}-{dose['equivalent_dose_band_high']:,.3g}) against "
+            f"{dose['clinical_dose_mg']:g} mg prescribed: {relation}. ({dose['dose_source']})"
+        )
+    elif row["censored"]:
+        lines.append("  No chip-derived daily dose: no toxicity was seen up to the highest tested concentration.")
     lines += [f"  assumption: {a}" for a in free.assumptions]
     return lines
 
@@ -62,17 +72,22 @@ def _literature_lines(key: str) -> list[str]:
     source = row["pod_sources"][idx] if idx < len(row["pod_sources"]) else "n/a"
     equivalent = row["dose_mg"] * p.margin_total
     return [
-        f"Literature benchmark (Geci et al. 2026): lowest in-vitro POD {row['lowest_pod_uM']:.3g} uM (from {source}); "
+        "Literature benchmark (different data, not the chip: lowest POD across published 2D in-vitro assays, "
+        "Geci et al. 2026). Its numbers differ from the chip's and are shown for comparison.",
+        f"  lowest in-vitro POD {row['lowest_pod_uM']:.3g} uM (from {source}); "
         f"Cmax {row['cmax_uM']:.3g} uM at {row['dose_mg']:g} mg.",
         f"  Margin (total) {margin.fmt_ratio(p.margin_total)}, band {margin.fmt_ratio(p.total_band[0])} to "
         f"{margin.fmt_ratio(p.total_band[1])}; margin (free) {margin.fmt_ratio(p.margin_free)}, band "
         f"{margin.fmt_ratio(p.free_band[0])} to {margin.fmt_ratio(p.free_band[1])}.",
-        f"  Equivalent daily dose (Cmax would reach the POD): {equivalent:,.3g} mg, band "
-        f"{row['dose_mg'] * p.total_band[0]:,.3g}-{row['dose_mg'] * p.total_band[1]:,.3g} mg, "
-        f"against a prescribed {row['dose_mg']:g} mg (linear-PK assumption).",
+        ("  Given intravenously only: no oral equivalent daily dose and no oral dose rule of thumb." if row["iv_only"] else
+         f"  Assay-derived daily dose (Cmax would reach this POD): {equivalent:,.3g} mg, band "
+         f"{row['dose_mg'] * p.total_band[0]:,.3g}-{row['dose_mg'] * p.total_band[1]:,.3g} mg, against "
+         f"{row['dose_mg']:g} mg prescribed: "
+         f"{margin.dose_relation(equivalent, row['dose_mg'] * p.total_band[0], row['dose_mg'] * p.total_band[1], row['dose_mg'])} "
+         "(linear-PK assumption)."),
         "  " + NO_LITERATURE_CONVENTION,
-        "  " + (IV_ONLY if row["iv_only"] else _rule_of_thumb_line(row["dose_mg"], row["logp"])),
-    ] + [f"  assumption: {n}" for n in notes]
+    ] + ([] if row["iv_only"] else ["  " + _rule_of_thumb_line(row["dose_mg"], row["logp"])]) \
+      + [f"  assumption: {n}" for n in notes]
 
 
 def _neural_lines(key: str) -> list[str]:

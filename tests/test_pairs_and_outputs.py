@@ -4,7 +4,7 @@ import time
 
 import pandas as pd
 
-from src import compound, config, figures, liver, load
+from src import compound, config, figures, liver, load, margin
 
 PROBABILITY_WORDS = ("probability", "proba", "score")
 
@@ -78,11 +78,11 @@ def test_neural_chemicals_are_found_by_name():
 
 
 def test_dose_relation_respects_the_band():
-    assert "above the whole band" in figures.dose_relation(16.1, 16.1, 61.7, 600)
+    assert "above the whole band" in margin.dose_relation(16.1, 16.1, 61.7, 600)
     # pioglitazone: 45 mg lies inside 39.6-291, so no "below" claim without the qualifier
-    text = figures.dose_relation(90.4, 39.6, 291, 45)
+    text = margin.dose_relation(90.4, 39.6, 291, 45)
     assert "inside the band" in text and "whole band" not in text
-    assert "below the whole band" in figures.dose_relation(90, 60, 200, 10)
+    assert "below the whole band" in margin.dose_relation(90, 60, 200, 10)
 
 
 def test_dose_view_renders_and_refuses_pairs_without_a_dose(tmp_path):
@@ -93,3 +93,25 @@ def test_dose_view_renders_and_refuses_pairs_without_a_dose(tmp_path):
     import pytest
     with pytest.raises(ValueError):
         figures.dose_view(margins, pairs, "ambrisentan", "sitaxsentan", tmp_path / "x.png")
+
+
+def test_compound_run_shows_the_same_chip_dose_as_the_dose_view():
+    table = liver.margin_table().set_index("key")
+    for key in ("troglitazone", "pioglitazone"):
+        text = "\n".join(compound.describe(key))
+        assert f"reached at {table.at[key, 'equivalent_dose_mg']:,.3g} mg/day" in text
+        assert "different data, not the chip" in text
+
+
+def test_empty_or_combined_cli_modes_are_refused(capsys):
+    import run_demo
+    import pytest
+    assert run_demo.main(["--compound", ""]) == 1
+    with pytest.raises(SystemExit):
+        run_demo.main(["--compound", "x", "--pair", "a", "b"])
+
+
+def test_censored_readout_dose_is_a_lower_bound(capsys):
+    import run_demo
+    run_demo.main(["--readout", "12", "--cmax", "0.8", "--dose-mg", "100", "--censored"])
+    assert "Chip-derived daily dose: >" in capsys.readouterr().out

@@ -66,3 +66,20 @@ def test_changed_analysis_plan_is_refused(tmp_path, monkeypatch):
         assert "primary_comparison" in str(exc)
     else:
         raise AssertionError("a changed plan must be refused")
+
+
+def test_code_frozen_at_preregistration_is_unchanged():
+    frozen = json.loads(validate.CODE_FREEZE.read_text())
+    assert frozen["commit"] == "a76e7e9"
+    assert frozen["fingerprints"] == validate.code_fingerprints()
+
+
+def test_changed_frozen_code_is_refused(monkeypatch):
+    real = validate.code_fingerprints()
+    monkeypatch.setattr(validate, "code_fingerprints", lambda: {**real, "src/validate.py:BOOTSTRAP_SEED": "changed"})
+    try:
+        validate.load_verified_split(validate.benchmark_table())
+    except SystemExit as exc:
+        assert "BOOTSTRAP_SEED" in str(exc)
+    else:
+        raise AssertionError("changed frozen code must be refused")
