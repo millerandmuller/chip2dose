@@ -70,3 +70,11 @@
 
 - 136 chemicals, 82 active; 21 with an exposure comparator and a margin with band.
 - No published convention threshold exists for this endpoint; no verdicts are issued.
+- Exposure-data coverage (the limit on this endpoint, counted):
+  - chemicals tested: 136
+  - active: 82
+  - with a human exposure comparator: 21
+  - via predicted exposure: 13 (EPA ExpoCast prediction)
+  - via measured exposure: 9 (measured clinical Cmax)
+  - in both routes: 1 - Simvastatin
+  - check: 13 + 9 = 22 route rows for 21 chemicals (1 in both)

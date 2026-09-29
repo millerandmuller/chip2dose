@@ -63,3 +63,37 @@ def test_neural_table_covers_every_chemical_and_issues_no_verdict():
     potency, margins = neural.margin_table()
     assert len(potency) == 136 and potency["active"].sum() == 82
     assert (margins["verdict"] == neural.NO_CONVENTION).all()
+
+
+def test_neural_coverage_counts_reconcile_with_the_margin_table():
+    """The funnel is a measurement: every count is re-derived here from the tables, not asserted."""
+    from src import neural
+    potency, margins = neural.margin_table()
+    coverage = neural.coverage(potency, margins)
+    counts = dict(zip(coverage["stage"].str.strip(), coverage["count"]))
+    assert counts["chemicals tested"] == len(potency)
+    assert counts["active"] == int(potency["active"].sum())
+    assert counts["with a human exposure comparator"] == margins["compound"].nunique()
+    # the sanity row: per-route counts are not a total, and the table says so
+    assert counts["via predicted exposure"] + counts["via measured exposure"] == len(margins)
+    assert (counts["via predicted exposure"] + counts["via measured exposure"]
+            - counts["in both routes"] == counts["with a human exposure comparator"])
+    assert "route rows" in coverage.attrs["check"]
+
+
+def test_neural_coverage_refuses_counts_that_do_not_reconcile():
+    """A comparator for a chemical with no active potency value is a counting error, not a result."""
+    import pandas as pd
+    import pytest
+    from src import neural
+    potency, margins = neural.margin_table()
+    broken = margins.copy()
+    broken.loc[broken.index[0], "compound"] = "not-a-tested-chemical"
+    with pytest.raises(ValueError, match="comparator without an active potency value"):
+        neural.coverage(potency, broken)
+
+
+def test_no_verdict_is_issued_for_any_neural_compound():
+    from src import neural
+    _, margins = neural.margin_table()
+    assert set(margins["verdict"]) == {neural.NO_CONVENTION}

@@ -123,8 +123,12 @@ grouping and the split hash. Then what the freeze does and does not cover, from 
 - **7.2** The benchmark: arms table, ROC (`results/roc.png`), paired differences
   (`results/paired_difference.png`), and the in-sample/out-of-sample comparison from Section 2.1.
 - **7.3** The exploratory exposure-alone analysis, labelled as added after the first run.
-- **7.4** The second organ: potency for 136 chemicals, margins for the 21 with an exposure comparator, and
-  the count of how few that is.
+- **7.4** The second organ, and the measurement of the field's bottleneck: 136 chemicals tested, 82
+  active, 21 with any public human exposure comparator (13 predicted by the EPA, 9 measured clinical
+  Cmax, simvastatin in both — 22 route rows for 21 chemicals). Figure: `results/neural_coverage.png`,
+  table: `results/neural_coverage.csv`, both generated. The point for the reader: for roughly three
+  quarters of the chemicals this chip has already measured, nobody can take the step from
+  concentration to dose, and the missing half is the published exposure value, not the chip.
 
 ## 8. Failures, limitations and bias *(outline)*
 

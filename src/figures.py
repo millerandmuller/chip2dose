@@ -217,16 +217,19 @@ def liver_overview(margins: pd.DataFrame, path: Path) -> Path:
 
 # --------------------------------------------------------------------------- validation
 
+# (arm name as the validation reports it, short label for the legend, colour, line style). The short
+# label keeps the legend inside the axes: below the axes it cost a quarter of the frame, and this
+# figure is read at video resolution. The rule-of-thumb definition moves to the footnote.
 ROC_ARMS = [
-    ("potency alone", GREY, "-"),
-    ("rule of thumb (dose >= 100 mg, logP >= 3)", ORANGE, ":"),
-    ("margin alone (total)", SKY, "--"),
-    ("learned, potency-only features (LR)", BLACK, "-."),
-    ("learned, exposure-aware features (LR)", VERMILLION, "-"),
+    ("potency alone", "potency alone", GREY, "-"),
+    ("rule of thumb (dose >= 100 mg, logP >= 3)", "dose rule of thumb", ORANGE, ":"),
+    ("margin alone (total)", "margin alone (total)", SKY, "--"),
+    ("learned, potency-only features (LR)", "learned: potency only (LR)", BLACK, "-."),
+    ("learned, exposure-aware features (LR)", "learned: exposure-aware (LR)", VERMILLION, "-"),
 ]
 
 
-EXPLORATORY_ROC_ARM = ("exploratory: total Cmax alone", GREY, (0, (1, 1)))
+EXPLORATORY_ROC_ARM = ("exploratory: total Cmax alone", "exploratory: Cmax alone", GREY, (0, (1, 1)))
 
 
 def roc_figure(result: dict, exploratory: dict, path: Path) -> Path:
@@ -235,18 +238,26 @@ def roc_figure(result: dict, exploratory: dict, path: Path) -> Path:
     scores = {**result["_scores"], **exploratory["_scores"]}
     aucs = {a["arm"]: a for a in result["arms"] + exploratory["arms"]}
     fig, ax = plt.subplots(figsize=(11, 9), dpi=120)
-    for name, colour, style in ROC_ARMS + [EXPLORATORY_ROC_ARM]:
+    for name, short, colour, style in ROC_ARMS + [EXPLORATORY_ROC_ARM]:
         fpr, tpr, _ = roc_curve(y, scores[name])
         a = aucs[name]
         ax.plot(fpr, tpr, color=colour, ls=style, lw=3 if not name.startswith("exploratory") else 2,
-                label=f"{name}: AUC {a['auc']:.2f} [{a['ci_low']:.2f}-{a['ci_high']:.2f}]")
+                label=f"{short}: AUC {a['auc']:.2f} [{a['ci_low']:.2f}-{a['ci_high']:.2f}]")
     ax.plot([0, 1], [0, 1], color=GREY, lw=1, alpha=0.5)
     ax.set_xlabel("False-positive rate (drugs without clinical DILI concern flagged)")
     ax.set_ylabel("True-positive rate (drugs with DILI concern flagged)")
     ax.set_title(f"Held-out drugs, grouped by matched pair and structure (n = {result['n']}; "
                  f"{result['n_positive']} with concern, {result['n_negative']} without)", fontsize=15)
-    ax.legend(loc="upper center", bbox_to_anchor=(0.5, -0.12), frameon=False, fontsize=12, ncol=1)
+    # Lower right: empty by construction in a ROC plot, so the legend costs no curve area.
+    ax.legend(loc="lower right", frameon=True, framealpha=0.95, edgecolor=GREY, fontsize=13,
+              borderpad=0.7, labelspacing=0.5, handlelength=2.6)
     ax.set_aspect("equal")
+    fig.text(0.01, 0.005,
+             f"Dose rule of thumb: flagged when the daily dose is >= {config.RULE_OF_THUMB_DOSE_MG:g} mg and "
+             f"logP >= {config.RULE_OF_THUMB_LOGP:g}. LR = logistic regression. Brackets are 95% CIs (group bootstrap)."
+             "\nIn-sample comparator: Geci et al. 2026 report 90% for this class definition, retrospectively on all "
+             "241 drugs, with no hold-out and no interval.",
+             fontsize=11, color=GREY, linespacing=1.4)
     return _save(fig, path)
 
 
@@ -278,6 +289,55 @@ def paired_difference_figure(result: dict, exploratory: dict, path: Path) -> Pat
 
 
 # --------------------------------------------------------------------------- F6 neural
+
+def neural_coverage_figure(coverage: pd.DataFrame, path: Path) -> Path:
+    """Where the pipeline stops on this dataset, and why: not at the chip, at the exposure half.
+
+    Three funnel bars for the counted stages, then the two comparator routes as separate bars,
+    because they measure different things and one chemical appears in both.
+    """
+    funnel = coverage.iloc[:3]
+    routes = coverage.iloc[3:5]
+    total = int(funnel["count"].iloc[0])
+    fig, (ax, ax_r) = plt.subplots(1, 2, **VIDEO, gridspec_kw={"width_ratios": [1.75, 1], "wspace": 0.05})
+
+    colours = [SKY, BLUE, VERMILLION]
+    for i, (_, row) in enumerate(funnel.iterrows()):
+        y = len(funnel) - 1 - i
+        ax.barh(y, row["count"], color=colours[i], height=0.5)
+        ax.annotate(f"{row['count']}", (row["count"], y), textcoords="offset points", xytext=(12, 0),
+                    va="center", fontsize=22, weight="bold", color=colours[i])
+    ax.set_yticks(range(len(funnel)))
+    # The qualifier rides with its stage, so no floating text can collide with a bar or the axis.
+    ax.set_yticklabels([f"{r['stage'].strip()}\n{r['detail']}" for _, r in funnel.iloc[::-1].iterrows()], fontsize=14)
+    ax.set_ylim(-0.6, len(funnel) - 0.4)
+    ax.set_xlim(0, total * 1.2)
+    ax.set_xlabel("chemicals", fontsize=14)
+    ax.set_title("The pipeline runs out of exposure data, not chip data", fontsize=20, pad=18)
+
+    route_colours = [GREEN, BLUE]
+    for i, (_, row) in enumerate(routes.iterrows()):
+        y = len(routes) - 1 - i
+        ax_r.barh(y, row["count"], color=route_colours[i], height=0.4)
+        ax_r.annotate(f"{row['count']}", (row["count"], y), textcoords="offset points", xytext=(10, 0),
+                      va="center", fontsize=20, weight="bold", color=route_colours[i])
+    ax_r.set_yticks(range(len(routes)))
+    ax_r.set_yticklabels([c.replace(" ", "\n", 1) for c in routes["comparator"]][::-1], fontsize=14)
+    ax_r.tick_params(axis="y", pad=8)
+    ax_r.set_ylim(-0.7, len(routes) - 0.3)
+    ax_r.set_xlim(0, max(routes["count"]) * 1.3)
+    ax_r.set_xlabel("chemicals", fontsize=14)
+    ax_r.set_title("...and the comparator\nthose few have", fontsize=17, pad=18)
+    for axis in (ax, ax_r):  # counts of chemicals: whole numbers only
+        axis.xaxis.set_major_locator(matplotlib.ticker.MaxNLocator(integer=True))
+
+    fig.text(0.01, -0.02,
+             f"Counted from the generated tables, not asserted: {coverage.attrs['check']}. The two routes measure "
+             "different things (a predicted population exposure and a measured clinical Cmax) and are never pooled "
+             "into one number. No published convention threshold exists for this endpoint, so no verdict is issued.",
+             fontsize=12, color=GREY, wrap=True)
+    return _save(fig, path)
+
 
 def neural_figure(neural_margins: pd.DataFrame, n_chemicals: int, n_active: int, path: Path) -> Path:
     """Two panels, because the two routes measure different things and must not share an axis."""

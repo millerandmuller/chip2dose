@@ -236,3 +236,11 @@ def test_every_result_writer_goes_through_the_atomic_helper(tmp_path, monkeypatc
     output.atomic_write_text(tmp_path / "probe.md", "text")
     figures.pair_view(liver.margin_table(), "troglitazone", "pioglitazone", tmp_path / "probe.png")
     assert seen == ["probe.csv", "probe.md", "probe.png"]
+
+
+def test_roc_legend_labels_stay_short_enough_to_sit_inside_the_axes():
+    """The ROC legend sits in the empty lower-right corner so the curve keeps the frame. A longer
+    label grows that box into the curves. 28 characters is the longest label measured clear of every
+    curve at 1920x1080; the check is the rendered figure, this is the guard against drifting past it."""
+    labels = [short for _, short, _, _ in figures.ROC_ARMS + [figures.EXPLORATORY_ROC_ARM]]
+    assert max(len(s) for s in labels) <= 28, labels

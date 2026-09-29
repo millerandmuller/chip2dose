@@ -14,7 +14,7 @@ The output is a ratio against patient exposure or a daily dose in mg, never a 0-
 ```bash
 git clone https://github.com/millerandmuller/chip2dose && cd chip2dose
 make            # creates .venv (Python 3.11), downloads + verifies data, writes results/
-make test       # 57 tests
+make test       # 75 tests
 ```
 
 A full `make` takes about 2-3 minutes on an idle laptop CPU and up to ~10 minutes on a busy one; the
@@ -41,9 +41,10 @@ Other entry points (a few seconds each; every run first checks the input checksu
 | `results/dose_view.png` | the output in real units for troglitazone / pioglitazone: the daily dose at which the chip's toxic concentration is reached, with band, next to the prescribed dose. An illustration of the output; potency alone already ranks this pair correctly, and the comparative evidence is the benchmark |
 | `results/pair_view.png`, `results/pairs/` | potency, patient exposure and margin for each of the 7 matched toxic/non-toxic pairs |
 | `results/liver_margin_table.csv`, `liver_margins.png` | 27 Liver-Chip drugs: total and free margin, band, verdict against the published convention, equivalent daily dose where a dose-matched Cmax exists, assumptions |
-| `results/roc.png`, `paired_difference.png`, `validation_*.csv` | the pre-registered validation on 220 drugs |
+| `results/roc.png`, `paired_difference.png`, `validation_*.csv` | the pre-registered validation on 220 drugs; `roc.png` names the in-sample comparator from Geci et al. (90 % for the same class definition, retrospective, 241 drugs) |
 | `results/failure_cases.csv` | drugs the model gets wrong, in real units (cut chosen in-sample: an illustration, not a performance estimate) |
 | `results/neural_margin_table.csv`, `neural_margins.png` | the neural application |
+| `results/neural_coverage.csv`, `neural_coverage.png` | how far the pipeline gets on the neural set: 136 tested, 82 active, 21 with a public human exposure comparator, split by comparator type |
 | `results/crosschecks.csv` | published numbers re-derived from their inputs, with every mismatch listed |
 
 ## Method
@@ -106,6 +107,30 @@ Cmax to lowest in-vitro toxicity, in a retrospective analysis of all 241 drugs (
 benchmark is the out-of-sample test of their ratio, under a plan and a split committed before the first evaluation, with
 structure-grouped folds and paired confidence intervals.
 
+### Does the published number survive a structure-grouped split?
+
+Geci et al. report two AUCs for their ratio, one per class definition. We reproduce both class definitions exactly, so
+each of their figures has a counterpart here:
+
+| Class definition (their wording) | Geci et al.: retrospective, 241 drugs | Here: pre-registered, grouped, held-out |
+|---|---|---|
+| "No- from Most-DILI and Clinical Development Failure drugs" | 96 % (point estimate, no CI) | **0.938 [0.884, 0.980]** (n = 152, 132 groups) |
+| "No- from Less-, Most-DILI and Clinical Development Failures" | 90 % (point estimate, no CI) | **0.889 [0.829, 0.940]** (n = 220, 177 groups) |
+
+Both of our intervals contain their published value: the relationship holds on drugs the model never saw, with matched
+pairs, identical molecules and structural neighbours (Morgan Tanimoto >= 0.4) kept out of the training folds. The two
+columns are not like for like, in three ways that all belong in this same paragraph: we cover 220 of the 241 drugs
+(oral only, one row per molecule, non-ambiguous label); their values carry no interval, so "contains their value" is a
+statement about our uncertainty and not about theirs; and the two ratios are not built from the same assays, because
+their ratio uses functional toxicity only ("Functional toxicity refers to all in vitro toxicity data except BSEP
+inhibition") while our lowest POD is the minimum over all available assays, BSEP included. A BSEP-excluded margin is
+listed under future work rather than added here: a new arm after the first evaluation would break the pre-registration
+this comparison rests on.
+
+One comparison to avoid, because the 96 % is the number an abstract-reader remembers: setting that 96 % against our
+0.889 suggests a drop of about 0.07 from out-of-sample validation. It is an artefact of comparing two different class
+definitions. The matched rows above are the comparison.
+
 ## Findings we report against ourselves
 
 - **The hero pair is not "identical potency".** Troglitazone (withdrawn) and pioglitazone (still prescribed) are a
@@ -120,10 +145,14 @@ structure-grouped folds and paired confidence intervals.
   longer confirm the order: inconclusive, not a demonstrated reversal.
 - **Pioglitazone on the literature benchmark:** its lowest POD is a potent BSEP IC50 (0.3 uM), so the margin ranks it
   riskier than troglitazone, the opposite of the clinic.
-- **Neural application:** of 136 chemicals (82 active), 21 have an exposure comparator in the data; the table reports
-  margins only for those, in two separate panels because the two routes measure different things (pharmaceuticals:
-  EC50 / free clinical Cmax; environmental chemicals: EPA's administered equivalent dose / predicted population
-  exposure). No published threshold exists for this endpoint, so no verdict is issued.
+- **Neural application — the exposure half is the bottleneck, and we counted it.** Of 136 chemicals tested on the
+  network-formation chip, 82 are active, and **21 have any public human exposure value to compare against**: 13 through
+  the EPA's predicted population exposure, 9 through a measured clinical Cmax, simvastatin through both (13 + 9 = 22
+  route rows for 21 chemicals). So for roughly three quarters of the chemicals this chip has already measured, the
+  step from concentration to dose cannot be taken by anyone — not because the chip data are missing, but because the
+  published exposure half is. The counts are generated, not asserted: `results/neural_coverage.csv` and
+  `neural_coverage.png`. Margins are reported for those 21 only, in two separate panels because the two routes measure
+  different things and are never pooled. No published threshold exists for this endpoint, so no verdict is issued.
 - The literature benchmark's lowest POD is the minimum over however many assays were run on a drug; the number of
   assays alone separates the outcome about as well as potency (AUC 0.66). This favours the potency arm, i.e. works
   against our headline, and is reported rather than corrected.

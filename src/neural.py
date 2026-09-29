@@ -131,6 +131,43 @@ def drug_route(potency: pd.DataFrame) -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 
+AED_ROUTE = "AED vs predicted exposure"
+DRUG_ROUTE = "network EC50 vs clinical Cmax"
+
+
+def coverage(potency: pd.DataFrame, margins: pd.DataFrame) -> pd.DataFrame:
+    """How far the pipeline gets on this dataset, counted rather than described: tested -> active ->
+    has a public human exposure comparator, split by which kind of comparator.
+
+    The two routes are counted separately because they measure different things, and a chemical can
+    appear in both. The last row reconciles the per-route counts with the number of chemicals, so a
+    reader never has to guess whether 13 + 9 is a total.
+    """
+    aed = set(margins.loc[margins["route"] == AED_ROUTE, "compound"])
+    drug = set(margins.loc[margins["route"] == DRUG_ROUTE, "compound"])
+    both = sorted(aed & drug)
+    active = set(potency.loc[potency["active"], "compound"])
+    if not (aed | drug) <= active:
+        raise ValueError(f"comparator without an active potency value: {sorted((aed | drug) - active)}")
+    rows = [
+        ("chemicals tested", len(potency), "", "EPA MEA network-formation set (Shafer et al. 2019)"),
+        ("active", int(potency["active"].sum()), "", "at least one network-formation EC50"),
+        ("with a human exposure comparator", len(aed | drug), "",
+         "the only chemicals a margin can be computed for"),
+        ("  via predicted exposure", len(aed), "EPA ExpoCast prediction", "AED / predicted population exposure"),
+        ("  via measured exposure", len(drug), "measured clinical Cmax", "network EC50 / free clinical Cmax"),
+        ("  in both routes", len(both), "both", ", ".join(both) or "none"),
+    ]
+    frame = pd.DataFrame(rows, columns=["stage", "count", "comparator", "detail"])
+    # Completeness check: per-route rows must reconcile with unique chemicals and with the table.
+    reconciles = len(aed) + len(drug) - len(both) == len(aed | drug) == margins["compound"].nunique()
+    if not (reconciles and len(margins) == len(aed) + len(drug)):
+        raise ValueError("neural coverage counts do not reconcile with the margin table")
+    frame.attrs["check"] = (f"{len(aed)} + {len(drug)} = {len(margins)} route rows for "
+                            f"{len(aed | drug)} chemicals ({len(both)} in both)")
+    return frame
+
+
 def margin_table() -> tuple[pd.DataFrame, pd.DataFrame]:
     """(potency for all chemicals, margins where an exposure comparator exists)."""
     potency = potency_table()
