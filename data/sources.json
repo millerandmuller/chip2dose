@@ -1,0 +1,103 @@
+{
+  "_comment": "Every input file Chip2Dose reads. `fetch.py` downloads, verifies sha256 and writes provenance.csv. redistribute=true files are cached in this repository; redistribute=false files are fetched at a pinned, immutable URL and never committed.",
+  "sources": [
+    {
+      "id": "liverchip_sd1",
+      "file": "raw/liverchip_supplementary_data_1.xlsx",
+      "description": "Liver-Chip study, Supplementary Data 1: drug information, human Cmax (total), expected fraction unbound in plasma, chip dosing concentrations (total and free).",
+      "urls": [
+        "https://static-content.springer.com/esm/art%3A10.1038%2Fs43856-022-00209-1/MediaObjects/43856_2022_209_MOESM1_ESM.xlsx"
+      ],
+      "citation": "Ewart L, et al. Performance assessment and economic analysis of a human Liver-Chip for predictive toxicology. Commun Med 2, 154 (2022). doi:10.1038/s43856-022-00209-1",
+      "license": "CC-BY-4.0",
+      "license_url": "https://creativecommons.org/licenses/by/4.0/",
+      "access_date": "2026-09-28",
+      "redistribute": true,
+      "sha256": "8a37ff64f0b2b425650d4bafc43e9e79f90f995d47b7e87e49a7416e1af9567d"
+    },
+    {
+      "id": "liverchip_sd8",
+      "file": "raw/liverchip_supplementary_data_8.xlsx",
+      "description": "Liver-Chip study, Supplementary Data 8: day-3 albumin, ALT and morphology per concentration for three matched pairs (source data of Figs. 1-2).",
+      "urls": [
+        "https://static-content.springer.com/esm/art%3A10.1038%2Fs43856-022-00209-1/MediaObjects/43856_2022_209_MOESM8_ESM.xlsx"
+      ],
+      "citation": "Ewart L, et al. Commun Med 2, 154 (2022). doi:10.1038/s43856-022-00209-1",
+      "license": "CC-BY-4.0",
+      "license_url": "https://creativecommons.org/licenses/by/4.0/",
+      "access_date": "2026-09-28",
+      "redistribute": true,
+      "sha256": "87cc22d0c1d4508f7e0830df348c52238bdb18d821c8d29cc0751114081509fc"
+    },
+    {
+      "id": "liverchip_article",
+      "file": "raw/liverchip_article_PMC9727064.xml",
+      "description": "Liver-Chip study full text (JATS XML). Table 1 = matched toxic/non-toxic pairs and Garside DILI rank; Table 4 = chip MOS-like values per donor.",
+      "urls": [
+        "https://www.ebi.ac.uk/europepmc/webservices/rest/PMC9727064/fullTextXML"
+      ],
+      "citation": "Ewart L, et al. Commun Med 2, 154 (2022). doi:10.1038/s43856-022-00209-1",
+      "license": "CC-BY-4.0",
+      "license_url": "https://creativecommons.org/licenses/by/4.0/",
+      "access_date": "2026-09-28",
+      "redistribute": true,
+      "sha256": "48addc159dc30ffb628c4adc4f71dd170f8f3b0b5f4b2f71b5d8fdc7f5719468"
+    },
+    {
+      "id": "dilirank2",
+      "file": "raw/dilirank_2.0.xlsx",
+      "description": "FDA DILIrank 2.0: 1,336 FDA-approved drugs with vMost / vLess / vNo / Ambiguous DILI-concern labels.",
+      "urls": [
+        "https://www.fda.gov/media/113052/download"
+      ],
+      "citation": "U.S. FDA, Drug-Induced Liver Injury Rank (DILIrank 2.0) Dataset. https://www.fda.gov/science-research/liver-toxicity-knowledge-base-ltkb/drug-induced-liver-injury-rank-dilirank-20-dataset",
+      "license": "US-Government-Work (public domain, 17 U.S.C. 105)",
+      "license_url": "https://www.usa.gov/government-copyright",
+      "access_date": "2026-09-28",
+      "redistribute": true,
+      "sha256": "1ca1352ff727af68e68e250eae2ed775bca8492335140ac0afd2233248694993"
+    },
+    {
+      "id": "epa_mea_aed",
+      "file": "raw/epa_mea_toxcast_aeds_25Oct2018.xlsx",
+      "description": "US EPA MEA network-formation dataset: minimum EC50 across 17 network parameters for 146 test entries, ToxCast comparison and administered equivalent doses (AEDs).",
+      "urls": [
+        "https://pasteur.epa.gov/uploads/10.23719/1503191/MEA_and_ToxCast_and%20AEDs_for_TC_NTP_25Oct2018.xlsx"
+      ],
+      "citation": "Shafer TJ, et al. Evaluation of chemical effects on network formation in cortical neurons grown on microelectrode arrays. Toxicol Sci 169(2):436-455 (2019). Data: doi:10.23719/1503191",
+      "license": "US-Government-Work (EPA data are public domain by default)",
+      "license_url": "https://pasteur.epa.gov/license/sciencehub-license.html",
+      "access_date": "2026-09-28",
+      "redistribute": true,
+      "sha256": "9e4d76320cb6926c331f3ebd5cbc01e19c8cd56b1644cdb72bed2d54be335d17"
+    },
+    {
+      "id": "geci_literature",
+      "file": "external/geci_drug_literature_data.xlsx",
+      "description": "Geci et al. integrated drug table: in-vitro PODs from 17 hepatotoxicity datasets (lowestPOD), Cmax values (medianCmax), clinical dose, DILIrank labels.",
+      "urls": [
+        "https://raw.githubusercontent.com/ReneGeci/DILIprediction/861f63d523fda31307544e47955f1419be01451a/data/Collected%20data/Drug%20Literature%20Data.xlsx"
+      ],
+      "citation": "Geci R, Sayin AZ, Schaller S, Kuepfer L. Integration of in vitro and in silico approaches enables prediction of drug-induced liver injury. Arch Toxicol 100(5):2029-2046 (2026). doi:10.1007/s00204-026-04305-2 . Data: https://github.com/ReneGeci/DILIprediction",
+      "license": "Repository has no LICENSE file; the article is CC-BY 4.0 and states the data are published with it. Not redistributed here; fetched at a pinned commit.",
+      "license_url": "https://github.com/ReneGeci/DILIprediction",
+      "access_date": "2026-09-28",
+      "redistribute": false,
+      "sha256": "4083523c4288ae135e7830899570f0efcf54c1d40c3a3aba67dd09a051282167"
+    },
+    {
+      "id": "geci_properties",
+      "file": "external/geci_predicted_compound_properties.xlsx",
+      "description": "Geci et al. predicted compound properties: logP (OPERA, VEGA, ADMETLab) and fraction unbound in plasma (OPERA, ADMETLab, Simulations Plus).",
+      "urls": [
+        "https://raw.githubusercontent.com/ReneGeci/DILIprediction/861f63d523fda31307544e47955f1419be01451a/data/Collected%20data/Predicted%20Compound%20Properties.xlsx"
+      ],
+      "citation": "Geci R, et al. Arch Toxicol 100(5):2029-2046 (2026). doi:10.1007/s00204-026-04305-2 . Data: https://github.com/ReneGeci/DILIprediction",
+      "license": "Repository has no LICENSE file; not redistributed here; fetched at a pinned commit.",
+      "license_url": "https://github.com/ReneGeci/DILIprediction",
+      "access_date": "2026-09-28",
+      "redistribute": false,
+      "sha256": "421504f8e12f2d222ceded3f7457b19ee7e49d0df6af7663ff329fa5aee4ceba"
+    }
+  ]
+}
