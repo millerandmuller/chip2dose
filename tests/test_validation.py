@@ -1,0 +1,53 @@
+"""The validation cannot leak: split fixed in advance, groups never cross folds."""
+
+import json
+
+import numpy as np
+from sklearn.metrics import roc_auc_score
+
+from src import validate
+
+
+def _table_and_split():
+    table = validate.benchmark_table()
+    return table, validate.load_verified_split(table)
+
+
+def test_split_matches_preregistration():
+    table, frame = _table_and_split()
+    doc = json.loads(validate.PREREG.read_text())
+    assert doc["n_drugs"] == len(table)
+    assert doc["split_sha256"] == validate.sha256_text(validate.split_csv_text(frame))
+
+
+def test_no_group_is_split_across_folds():
+    _, frame = _table_and_split()
+    for column in [c for c in frame.columns if c.startswith("repeat_")]:
+        assert (frame.groupby("group")[column].nunique() == 1).all()
+
+
+def test_matched_pairs_share_a_group():
+    table, frame = _table_and_split()
+    group = dict(zip(table["identity"], frame["group"]))
+    for a, b in [("troglitazone", "pioglitazone"), ("tolcapone", "entacapone"), ("trovafloxacin", "levofloxacin")]:
+        assert group[a] == group[b]
+
+
+def test_one_row_per_molecule():
+    table, _ = _table_and_split()
+    assert table["identity"].is_unique
+
+
+def test_potency_alone_separates_worse_than_the_margin():
+    # Reproduces the published finding that in-vitro values alone separate DILI classes poorly.
+    table, _ = _table_and_split()
+    y = table["y_wide"].to_numpy()
+    potency = roc_auc_score(y, -table["log_pod"])
+    margin = roc_auc_score(y, -table["log_margin_total"])
+    assert potency < margin
+
+
+def test_rule_of_thumb_is_a_binary_flag_on_dose_and_logp():
+    table, _ = _table_and_split()
+    expected = ((table["dose_mg"] >= 100) & (table["logp"] >= 3)).astype(int)
+    assert np.array_equal(table["rule_of_thumb"], expected)

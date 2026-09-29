@@ -1,0 +1,6 @@
+comparison,primary,delta_auc,ci_low,ci_high,share_of_draws_leq_0
+"learned, exposure-aware features (LR) minus learned, potency-only features (LR)",True,0.278446,0.196269,0.375454,0
+"learned, exposure-aware features (GB) minus learned, potency-only features (GB)",False,0.253205,0.151318,0.37035,0
+margin alone (free) minus potency alone,False,0.217147,0.114355,0.329052,0
+margin alone (total) minus potency alone,False,0.274439,0.183423,0.375916,0
+"learned, exposure-aware features (LR) minus rule of thumb (dose >= 100 mg, logP >= 3)",False,0.277043,0.204688,0.352719,0

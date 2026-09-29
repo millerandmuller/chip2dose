@@ -1,0 +1,9 @@
+arm,auc,ci_low,ci_high
+potency alone,0.663662,0.562814,0.753633
+"rule of thumb (dose >= 100 mg, logP >= 3)",0.674679,0.601056,0.746279
+margin alone (total),0.938101,0.884496,0.979851
+margin alone (free),0.880809,0.806573,0.942727
+"learned, potency-only features (LR)",0.673277,0.573018,0.763083
+"learned, exposure-aware features (LR)",0.951723,0.897375,0.98925
+"learned, potency-only features (GB)",0.679888,0.568469,0.772319
+"learned, exposure-aware features (GB)",0.933093,0.869709,0.980959

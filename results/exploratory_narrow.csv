@@ -1,0 +1,7 @@
+arm,auc,ci_low,ci_high,comparison,delta_auc,share_of_draws_leq_0
+exploratory: total Cmax alone,0.902845,0.83313,0.957733,,,
+exploratory: daily dose alone,0.879107,0.799164,0.942159,,,
+exploratory: free Cmax alone,0.812901,0.733299,0.889461,,,
+,,-0.00589654,0.0825389,margin alone (total) minus exploratory: total Cmax alone,0.0352564,0.0455
+,,0.0141924,0.121854,margin alone (free) minus exploratory: free Cmax alone,0.0679087,0.006
+,,0.123893,0.360344,exploratory: total Cmax alone minus potency alone,0.239183,0

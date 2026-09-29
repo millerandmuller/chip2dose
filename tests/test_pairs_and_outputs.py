@@ -1,0 +1,51 @@
+"""Pair view, single-compound path and the no-score rule."""
+
+import time
+
+import pandas as pd
+
+from src import compound, config, figures, liver, load
+
+PROBABILITY_WORDS = ("probability", "proba", "score")
+
+
+def test_troglitazone_is_the_riskier_partner_of_a_published_pair():
+    pairs = load.liverchip_pairs().set_index("key")
+    assert pairs.at["troglitazone", "partner_key"] == "pioglitazone"  # from Table 1, not our choice
+    assert pairs.at["troglitazone", "garside_rank"] < pairs.at["pioglitazone", "garside_rank"]
+    margins = liver.margin_table().set_index("key")
+    assert margins.at["troglitazone", "margin_free"] < margins.at["pioglitazone", "margin_free"]
+
+
+def test_pair_view_renders_every_matched_pair_under_two_seconds(tmp_path):
+    margins = liver.margin_table()
+    matched = {tuple(sorted(p)) for p in zip(margins["key"], margins["partner_key"]) if p[1]}
+    assert len(matched) == 7
+    for a, b in matched:
+        started = time.time()
+        path = figures.pair_view(margins, a, b, tmp_path / f"{a}_{b}.png")
+        assert time.time() - started < 2.0
+        assert path.stat().st_size > 10_000
+
+
+def test_single_compound_run_is_fast_and_in_real_units():
+    started = time.time()
+    lines = compound.describe("troglitazone")
+    assert time.time() - started < 60
+    text = "\n".join(lines)
+    assert "uM" in text and "mg" in text and "Band" in text
+    assert "DILIrank 2.0" in text
+
+
+def test_rule_of_thumb_flag_shown_next_to_the_margin():
+    text = "\n".join(compound.describe("troglitazone"))
+    assert "Dose rule of thumb" in text and "FLAGGED" in text
+    assert "not flagged" in "\n".join(compound.describe("pioglitazone"))
+
+
+def test_no_per_compound_score_in_any_results_table():
+    tables = list(config.RESULTS.glob("*.csv"))
+    assert tables, "run `make` first"
+    for path in tables:
+        columns = " ".join(pd.read_csv(path, nrows=1).columns).lower()
+        assert not any(word in columns for word in PROBABILITY_WORDS), path.name

@@ -1,0 +1,8 @@
+pair,clinically_worse,garside_worse,comparator,garside_comparator,pod_worse_uM,pod_comparator_uM,comparator_pod_censored,potency_fold,cmax_worse_uM,cmax_comparator_uM,margin_free_worse,margin_free_comparator,margin_fold,verdict_worse,verdict_comparator,margin_orders_like_clinic,opposite_verdicts,exposure_gain_fold,both_potencies_observed
+Troglitazone / Pioglitazone,Troglitazone,1,Pioglitazone,3,0.1824,8.4,False,46.0526,6.08,3,1.42309,94.0772,66.1076,BELOW,BELOW,True,False,1.43548,True
+Fialuridine / FIRU,Fialuridine,1,FIRU,5,0.064,69.12,True,,0.64,0.64,0.268333,289.799,1080,BELOW,INCONCLUSIVE (censored below threshold),True,False,,False
+Tolcapone / Entacapone,Tolcapone,1,Entacapone,4,0.1904,19.8,True,,47.6,3.3,0.189,151.5,801.585,BELOW,INCONCLUSIVE (censored below threshold),True,False,,False
+Sitaxsentan / Ambrisentan,Sitaxsentan,1,Ambrisentan,5,1.144,7.9,True,,28.6,0.79,1.34398,336.027,250.023,BELOW,INCONCLUSIVE (censored below threshold),True,False,,False
+Clozapine / Olanzapine,Clozapine,2,Olanzapine,5,4.32,0.0018,True,,2.4,9e-05,24.218,225.714,9.32011,BELOW,INCONCLUSIVE (censored below threshold),True,False,,False
+Nefazodone / Buspirone,Nefazodone,1,Buspirone,4,6.02,0.135,True,,4.3,0.009,47.0386,215.655,4.58464,BELOW,INCONCLUSIVE (censored below threshold),True,False,,False
+Trovafloxacin / Levofloxacin,Trovafloxacin,1,Levofloxacin,2,95,532.46,True,,5,15.8,74.2582,44.6183,0.600854,BELOW,INCONCLUSIVE (censored below threshold),False,False,,False

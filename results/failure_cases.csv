@@ -1,0 +1,9 @@
+drug,clinical_label,model_call,lowest_pod_uM,cmax_uM,margin_total,daily_dose_mg,logp
+MIFEPRISTONE,No-DILI-Concern,concern,4.71,6,0.785,800,4.5
+METYRAPONE,No-DILI-Concern,concern,229.3,32.2617,7.10749,2000,1.8
+ETIDRONATE,No-DILI-Concern,concern,12.4287,1.65366,7.51589,200,-3.5
+Primidone,No-DILI-Concern,concern,48.691,41.4,1.17611,500,0.91
+PHENELZINE,Less-DILI-Concern,no concern,897.2,0.14538,6171.4,30,1.1
+Estradiol,Less-DILI-Concern,no concern,13.5,0.000660835,20428.7,2,3.91
+FINASTERIDE,Less-DILI-Concern,no concern,28.2,0.10227,275.742,5,3.03
+Tacrolimus,Less-DILI-Concern,no concern,11.592,0.00254969,4546.44,10.95,3.29

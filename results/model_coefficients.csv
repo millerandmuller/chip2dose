@@ -1,0 +1,14 @@
+feature,standardised_coefficient
+log_fu,-1.02696
+log_cmax,0.682378
+log_margin_total,-0.598893
+log_dose,0.576996
+missing:log_nonbsep_pod,-0.528947
+logp,-0.400865
+missing:log_cytotox,0.242901
+log_nonbsep_pod,-0.227919
+log_cytotox,-0.157639
+missing:log_bsep_ic50,-0.139619
+log_margin_free,-0.115154
+log_pod,0.0946928
+log_bsep_ic50,-0.0500924

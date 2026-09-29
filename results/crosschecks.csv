@@ -1,0 +1,7 @@
+check,n_checked,n_mismatch,tolerance,note
+Geci lowestPOD = min(PODValues),254,0,relative 1e-06,lowest in-vitro POD re-derived from the per-dataset values
+"Geci Cmax = curated value, else median of sources",254,0,relative 1e-06,the column is named medianCmax but holds the curated dose-matched value when one exists
+EPA MEA min.ec50 = min over entries of the same chemical,146,0,relative 1e-06,per-chemical minimum EC50 across duplicate test entries
+Liver-Chip free dose = multiplier x Cmax x fu_plasma,224,8,relative 0.05,dosing rule from the Methods; the source footnotes a dosing calculation error for troglitazone
+Liver-Chip 'both donors' MOS = combination rule,18,0,relative 1e-06,lowest observed toxic value wins; otherwise the highest tested bound
+"Cmax agreement, Liver-Chip SD1 vs Geci et al.",21,3,within 3-fold,two independent literature compilations of total plasma Cmax

@@ -1,0 +1,137 @@
+dtxsid,casrn,compound,min_network_ec50_uM,active,min_cytotoxicity_uM,has_margin
+DTXSID9041150,2001-95-8,Valinomycin,0.000203,True,0.0004,False
+DTXSID8023892,71751-41-2,Abamectin,0.000965,True,0.2161,True
+DTXSID6021248,83-79-4,Rotenone,0.006589,True,0.0135,True
+DTXSID6022345,789-02-6,"o,p'-DDT",0.00764,True,1.8672,False
+DTXSID9035204,2155-70-6,Tributyltin methacrylate,0.007967,True,0.0455,False
+DTXSID7021150,62-38-4,Phenylmercuric acetate,0.010625,True,0.0182,False
+DTXSID1020770,143-50-0,Kepone,0.034786,True,7.8051,False
+DTXSID1021322,97-77-8,Disulfiram,0.038201,True,0.0561,False
+DTXSID3027403,1461-22-9,Tributyltin chloride,0.03994,True,0.0672,False
+DTXSID7032638,175013-18-0,Pyraclostrobin,0.070005,True,0.0639,False
+DTXSID8024602,633-65-8,Berberine chloride,0.0727,True,0.0887,False
+DTXSID1034187,10540-29-1,Tamoxifen,0.081394,True,5.8027,True
+DTXSID9020160,82657-04-3,Bifenthrin,0.142286,True,13.622,True
+DTXSID9047542,117428-22-5,Picoxystrobin,0.20345,True,0.2618,False
+DTXSID6020690,70-30-4,Hexachlorophene,0.2183,True,1.3677,False
+DTXSID4032667,66230-04-4,Esfenvalerate,0.237103,True,20,False
+DTXSID0024002,39515-41-8,Fenpropathrin,0.24524,True,19.1012,False
+DTXSID5035957,68359-37-5,Cyfluthrin,0.271544,True,20,False
+DTXSID6047525,81131-70-6,Pravastatin sodium,0.278012,True,1.4811,True
+DTXSID2034625,361377-29-9,Fluoxastrobin,0.288996,True,0.6456,False
+DTXSID5032577,79538-32-2,Tefluthrin,0.295305,True,19.2811,False
+DTXSID2047276,194098-25-4,CP-409092,0.310025,True,20,False
+DTXSID0032572,23031-36-9,Prallethrin,0.326844,True,20,False
+DTXSID4020375,50-29-3,Dichlorodiphenyltrichloroethane,0.330182,True,4.0512,True
+DTXSID8020040,309-00-2,Aldrin,0.488658,True,7.0098,True
+DTXSID8035180,584-79-2,Allethrin,0.50824,True,20,True
+DTXSID4032580,141517-21-7,Trifloxystrobin,0.517975,True,0.2428,False
+DTXSID0023581,79902-63-9,Simvastatin,0.691776,True,0.2481,True
+DTXSID5020811,7487-94-7,Mercuric chloride,0.763598,True,0.554,False
+DTXSID0023907,205-99-2,Benzo(b)fluoranthene,0.807998,True,20,False
+DTXSID9020827,72-43-5,Methoxychlor,0.917629,True,5.6506,False
+DTXSID9047330,NOCAS_47330,PharmaGSID_47330,0.92084,True,20,False
+DTXSID0032520,131860-33-8,Azoxystrobin,0.925541,True,0.718,False
+DTXSID7020895,2385-85-5,Mirex,1.00631,True,2.0706,False
+DTXSID0028038,55406-53-6,3-Iodo-2-propynyl-N-butylcarbamate,1.1416,True,1.1381,False
+DTXSID9020374,72-55-9,"p,p'-DDE",1.17951,True,4.2952,False
+DTXSID4022442,77-40-7,Bisphenol B,1.53988,True,20,False
+DTXSID6048175,151506-44-4,Difpas-pyrazole,1.54739,True,20,False
+DTXSID9020114,2465-27-2,Auramine hydrochloride,1.5803,True,3.1371,False
+DTXSID7021237,50-55-5,Reserpine,1.73742,True,6.0466,True
+DTXSID4020373,72-54-8,"p,p'-DDD",1.76845,True,6.0702,False
+DTXSID9020243,133-06-2,Captan,1.82559,True,6.2055,False
+DTXSID6020220,1948-33-0,tert-Butylhydroquinone,1.86815,True,13.9626,False
+DTXSID3030056,5436-43-1,"2,2'4,4'-Tetrabromodiphenyl ether",1.8969,True,9.745,False
+DTXSID5020784,75330-75-5,Lovastatin,2.26746,True,0.863,True
+DTXSID9032610,80844-07-1,Etofenprox,2.35029,True,16.01,False
+DTXSID0045838,28094-15-7,Oxidopamine hydrochloride,2.5008,True,6.904,False
+DTXSID0022519,59-30-3,Folic acid,2.5507,True,20,True
+DTXSID9020249,1563-66-2,Carbofuran,2.66138,True,6.2227,True
+DTXSID2039336,28434-00-6,S-Bioallethrin,2.83208,True,19.3364,True
+DTXSID4047258,124378-77-4,Enadoline,2.95725,True,20,False
+DTXSID7020267,57-74-9,Chlordane,3.13732,True,4.4517,False
+DTXSID7022253,10453-86-8,Resmethrin,3.15233,True,20,False
+DTXSID4047254,220860-50-4,CP-457920,3.37909,True,20,True
+DTXSID8022325,2971-36-0,"2,2-Bis(4-hydroxyphenyl)-1,1,1-trichloroethane",3.58606,True,20,False
+DTXSID2020501,1095-90-5,Methadone hydrochloride,4.03719,True,16.0106,False
+DTXSID6034392,188425-85-6,Boscalid,4.25986,True,20,True
+DTXSID1020560,115-29-7,Endosulfan,4.335,True,8.5118,True
+DTXSID7027887,26040-51-7,Bis(2-ethylhexyl) tetrabromophthalate,4.6948,True,20,False
+DTXSID4020537,147-24-0,Diphenhydramine hydrochloride,4.73567,True,20,True
+DTXSID5032498,3380-34-5,Triclosan,4.79592,True,7.0034,False
+DTXSID8022292,52645-53-1,Permethrin,5.2924,True,9.985,True
+DTXSID0020573,50-28-2,17beta-Estradiol,5.42906,True,20,True
+DTXSID9030048,60348-60-9,"2,2',4,4',5-Pentabromodiphenyl ether",5.5035,True,10.5453,False
+DTXSID40880040,36913-39-0,1-Methyl-4-phenylpyridinium iodide,5.7599,True,6.5483,False
+DTXSID3047344,159138-81-5,Cariporide mesylate,7.24064,True,20,False
+DTXSID9049245,215-58-7,"Dibenz[a,c]anthracene",7.7465,True,20,False
+DTXSID7037717,1478-61-1,Bisphenol AF,7.84497,True,14.1067,False
+DTXSID4028880,68937-41-7,Triphenyl phosphates isopropylated,9.0963,True,15.9888,False
+DTXSID6032562,113-48-4,Octylbicycloheptenedicarboximide,9.84796,True,20,False
+DTXSID1021166,51-03-6,Piperonyl butoxide,10.7981,True,19.1251,False
+DTXSID9027738,12108-13-3,(Methylcyclopentadienyl)tricarbonylmanganese,11.1354,True,20,False
+DTXSID9020617,97-53-0,Eugenol,12.1851,True,20,False
+DTXSID9052686,183658-27-7,"2-Ethylhexyl 2,3,4,5-tetrabromobenzoate",12.2993,True,12.878,False
+DTXSID70880073,860302-33-6,Firemaster 550,12.6231,True,18.6896,False
+DTXSID5021411,115-96-8,Tris(2-chloroethyl) phosphate,14.0283,True,20,False
+DTXSID6024206,2212-67-1,Molinate,16.57,True,20,True
+DTXSID6024701,56803-37-3,tert-Butylphenyl diphenyl phosphate,16.9734,True,15.4908,False
+DTXSID1025300,1241-94-7,2-Ethylhexyl diphenyl phosphate,17.0155,True,20,False
+DTXSID5023902,56-55-3,Benz(a)anthracene,18.3078,True,20,False
+DTXSID2020139,50-32-8,Benzo(a)pyrene,18.4017,True,20,False
+DTXSID8044175,8000-34-8,Clove leaf oil,18.7724,True,20,False
+DTXSID9047889,848641-69-0,1-Ethyl-3-methylimidazolium diethylphosphate,,False,,False
+DTXSID4030047,68631-49-2,"2,2',4,4',5,5'-Hexabromodiphenyl ether",,False,,False
+DTXSID5024182,109-86-4,2-Methoxyethanol,,False,,False
+DTXSID2041464,111-94-4,"3,3'-Iminobispropanenitrile",,False,,False
+DTXSID1024887,203-64-5,4H-Cyclopenta(def)phenanthrene,,False,,False
+DTXSID5021209,51-52-5,6-Propyl-2-thiouracil,,False,,False
+DTXSID2020890,56-04-2,6-Methyl-2-thiouracil,,False,,False
+DTXSID3023845,208-96-8,Acenaphthylene,,False,,False
+DTXSID3021774,83-32-9,Acenaphthene,,False,,False
+DTXSID5020108,50-78-2,Aspirin,,False,,False
+DTXSID0023878,120-12-7,Anthracene,,False,,False
+DTXSID9020112,1912-24-9,Atrazine,,False,,False
+DTXSID3023764,192-97-2,Benzo(e)pyrene,,False,,False
+DTXSID0023909,207-08-9,Benzo(k)fluoranthene,,False,,False
+DTXSID5023908,191-24-2,"Benzo(g,h,i)perylene",,False,,False
+DTXSID3022409,80-09-1,"4,4'-Sulfonyldiphenol",,False,,False
+DTXSID1020194,10043-35-3,Boric acid,,False,,False
+DTXSID3020910,55-98-1,Busulfan,,False,,False
+DTXSID2020268,115-28-6,Chlorendic acid,,False,,False
+DTXSID0022432,218-01-9,Chrysene,,False,,False
+DTXSID6032354,105512-06-9,Clodinafop-propargyl,,False,,False
+DTXSID9034232,101-10-0,Cloprop,,False,20,False
+DTXSID2034465,210880-92-5,Clothianidin,,False,,False
+DTXSID6032358,57966-95-7,Cymoxanil,,False,,False
+DTXSID5023588,50-70-4,D-Glucitol,,False,,False
+DTXSID5020607,117-81-7,Di(2-ethylhexyl) phthalate,,False,,False
+DTXSID9020409,53-70-3,"Dibenz(a,h)anthracene",,False,,False
+DTXSID0022018,298-04-4,Disulfoton,,False,,False
+DTXSID1023235,69-65-8,D-Mannitol,,False,,False
+DTXSID6020561,72-20-8,Endrin,,False,,False
+DTXSID1024091,759-94-4,EPTC,,False,,False
+DTXSID4022991,114-07-8,Erythromycin,,False,,False
+DTXSID3024102,22224-92-6,Fenamiphos,,False,,False
+DTXSID4032613,122-14-5,Fenitrothion,,False,,False
+DTXSID2032552,142459-58-3,Flufenacet,,False,,False
+DTXSID8024105,86-73-7,Fluorene,,False,,False
+DTXSID9020663,56-81-5,Glycerol,,False,,False
+DTXSID3025465,29761-21-5,Isodecyl diphenyl phosphate,,False,,False
+DTXSID5020106,50-81-7,L-Ascorbic acid,,False,,False
+DTXSID0034695,8018-01-7,Mancozeb,,False,,False
+DTXSID5027279,638-38-0,Manganese(II) acetate,,False,,False
+DTXSID4020820,60-56-0,Methimazole,,False,,False
+DTXSID8020913,91-20-3,Naphthalene,,False,,False
+DTXSID7021100,56-38-2,Parathion,,False,,False
+DTXSID6024254,85-01-8,Phenanthrene,,False,,False
+DTXSID5021122,50-06-6,Phenobarbital,,False,,False
+DTXSID3024289,129-00-0,Pyrene,,False,,False
+DTXSID6034928,148477-71-8,Spirodiclofen,,False,,False
+DTXSID7023645,60-54-8,Tetracycline,,False,,False
+DTXSID6032649,7696-12-0,Tetramethrin,,False,20,False
+DTXSID7034961,111988-49-9,Thiacloprid,,False,,False
+DTXSID2034962,153719-23-4,Thiamethoxam,,False,,False
+DTXSID4021391,1330-78-5,Tris(methylphenyl) phosphate,,False,,False
+DTXSID0026252,101-02-0,Triphenyl phosphite,,False,,False

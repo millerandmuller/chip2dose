@@ -1,0 +1,4 @@
+compound,published_lowest_pod_uM,rederived_uM,from_dataset,n_source_values,match
+troglitazone,3,3,medianBSEPIC50,20,True
+ketoconazole,4.1,4.1,medianBSEPIC50,16,True
+diclofenac,29.8,29.8,Porceddu2012lowestPOD,10,True

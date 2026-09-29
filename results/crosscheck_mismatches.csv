@@ -1,0 +1,12 @@
+check,mismatch
+Liver-Chip free dose = multiplier x Cmax x fu_plasma,"Telithromycin x4e-05: published 0.00012, re-derived 4.464e-05"
+Liver-Chip free dose = multiplier x Cmax x fu_plasma,"Telithromycin x0.00013: published 0.00036, re-derived 0.00014508"
+Liver-Chip free dose = multiplier x Cmax x fu_plasma,"Telithromycin x0.00044: published 0.0012, re-derived 0.00049104"
+Liver-Chip free dose = multiplier x Cmax x fu_plasma,"Telithromycin x0.00133: published 0.0036, re-derived 0.00148428"
+Liver-Chip free dose = multiplier x Cmax x fu_plasma,"Telithromycin x0.00443: published 0.012, re-derived 0.00494388"
+Liver-Chip free dose = multiplier x Cmax x fu_plasma,"Telithromycin x0.01329: published 0.036, re-derived 0.0148316"
+Liver-Chip free dose = multiplier x Cmax x fu_plasma,"Telithromycin x0.04429: published 0.12, re-derived 0.0494276"
+Liver-Chip free dose = multiplier x Cmax x fu_plasma,"Telithromycin x0.13289: published 0.36, re-derived 0.148305"
+"Cmax agreement, Liver-Chip SD1 vs Geci et al.",ambrisentan: Liver-Chip SD1 0.79 uM vs Geci median 3 uM (3.8-fold)
+"Cmax agreement, Liver-Chip SD1 vs Geci et al.",fialuridine: Liver-Chip SD1 0.64 uM vs Geci median 2.239 uM (3.5-fold)
+"Cmax agreement, Liver-Chip SD1 vs Geci et al.",nefazodone: Liver-Chip SD1 4.3 uM vs Geci median 1.324 uM (3.2-fold)

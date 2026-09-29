@@ -1,0 +1,300 @@
+{
+  "wide": {
+    "preregistered": {
+      "endpoint": "wide",
+      "n": 220,
+      "n_positive": 172,
+      "n_negative": 48,
+      "n_groups": 177,
+      "arms": [
+        {
+          "arm": "potency alone",
+          "auc": 0.6467417635658915,
+          "ci_low": 0.5487056569890983,
+          "ci_high": 0.7387379542341219
+        },
+        {
+          "arm": "rule of thumb (dose >= 100 mg, logP >= 3)",
+          "auc": 0.6385658914728682,
+          "ci_low": 0.5740529515895704,
+          "ci_high": 0.7002460911181839
+        },
+        {
+          "arm": "margin alone (total)",
+          "auc": 0.8889292635658915,
+          "ci_low": 0.8292616865275819,
+          "ci_high": 0.9404140302297082
+        },
+        {
+          "arm": "margin alone (free)",
+          "auc": 0.8236434108527131,
+          "ci_low": 0.750289666473877,
+          "ci_high": 0.891902061195028
+        },
+        {
+          "arm": "learned, potency-only features (LR)",
+          "auc": 0.6432897286821706,
+          "ci_low": 0.55184746067486,
+          "ci_high": 0.7331894960704185
+        },
+        {
+          "arm": "learned, exposure-aware features (LR)",
+          "auc": 0.8867490310077518,
+          "ci_low": 0.8258322847749773,
+          "ci_high": 0.9374729526486507
+        },
+        {
+          "arm": "learned, potency-only features (GB)",
+          "auc": 0.6487403100775193,
+          "ci_low": 0.5442171182854412,
+          "ci_high": 0.7488774110893202
+        },
+        {
+          "arm": "learned, exposure-aware features (GB)",
+          "auc": 0.8458091085271318,
+          "ci_low": 0.7721499210042249,
+          "ci_high": 0.9098453765073363
+        }
+      ],
+      "comparisons": [
+        {
+          "comparison": "learned, exposure-aware features (LR) minus learned, potency-only features (LR)",
+          "primary": true,
+          "delta_auc": 0.24345930232558122,
+          "ci_low": 0.1522059913050385,
+          "ci_high": 0.33959176665251206,
+          "share_of_draws_leq_0": 0.0
+        },
+        {
+          "comparison": "learned, exposure-aware features (GB) minus learned, potency-only features (GB)",
+          "primary": false,
+          "delta_auc": 0.19706879844961245,
+          "ci_low": 0.09589630053484807,
+          "ci_high": 0.3059515137959202,
+          "share_of_draws_leq_0": 0.0
+        },
+        {
+          "comparison": "margin alone (free) minus potency alone",
+          "primary": false,
+          "delta_auc": 0.17690164728682156,
+          "ci_low": 0.06877051164266554,
+          "ci_high": 0.2906996101817745,
+          "share_of_draws_leq_0": 0.001
+        },
+        {
+          "comparison": "margin alone (total) minus potency alone",
+          "primary": false,
+          "delta_auc": 0.2421875,
+          "ci_low": 0.1491665907129811,
+          "ci_high": 0.34051476898782285,
+          "share_of_draws_leq_0": 0.0
+        },
+        {
+          "comparison": "learned, exposure-aware features (LR) minus rule of thumb (dose >= 100 mg, logP >= 3)",
+          "primary": false,
+          "delta_auc": 0.24818313953488358,
+          "ci_low": 0.18330488060588407,
+          "ci_high": 0.316084005565677,
+          "share_of_draws_leq_0": 0.0
+        }
+      ],
+      "outcome_case": "1: paired difference positive, CI excludes zero"
+    },
+    "exploratory": {
+      "endpoint": "wide",
+      "status": "exploratory, added after the first evaluation run; not pre-registered",
+      "arms": [
+        {
+          "arm": "exploratory: total Cmax alone",
+          "auc": 0.844718992248062,
+          "ci_low": 0.7738838755744479,
+          "ci_high": 0.9081870831870832
+        },
+        {
+          "arm": "exploratory: daily dose alone",
+          "auc": 0.8180717054263564,
+          "ci_low": 0.7415986896332096,
+          "ci_high": 0.8866315751860468
+        },
+        {
+          "arm": "exploratory: free Cmax alone",
+          "auc": 0.7453972868217054,
+          "ci_low": 0.6608033503697491,
+          "ci_high": 0.8226978550504764
+        }
+      ],
+      "comparisons": [
+        {
+          "comparison": "margin alone (total) minus exploratory: total Cmax alone",
+          "delta_auc": 0.04421027131782951,
+          "ci_low": 0.0028364042314000665,
+          "ci_high": 0.09015763086171225,
+          "share_of_draws_leq_0": 0.02
+        },
+        {
+          "comparison": "margin alone (free) minus exploratory: free Cmax alone",
+          "delta_auc": 0.07824612403100772,
+          "ci_low": 0.026101212292815805,
+          "ci_high": 0.1315616967760887,
+          "share_of_draws_leq_0": 0.003
+        },
+        {
+          "comparison": "exploratory: total Cmax alone minus potency alone",
+          "delta_auc": 0.1979772286821705,
+          "ci_low": 0.07359082466175586,
+          "ci_high": 0.328209934653209,
+          "share_of_draws_leq_0": 0.002
+        }
+      ]
+    }
+  },
+  "narrow": {
+    "preregistered": {
+      "endpoint": "narrow",
+      "n": 152,
+      "n_positive": 104,
+      "n_negative": 48,
+      "n_groups": 132,
+      "arms": [
+        {
+          "arm": "potency alone",
+          "auc": 0.6636618589743589,
+          "ci_low": 0.5628137003652646,
+          "ci_high": 0.7536329158951972
+        },
+        {
+          "arm": "rule of thumb (dose >= 100 mg, logP >= 3)",
+          "auc": 0.6746794871794871,
+          "ci_low": 0.601055649639409,
+          "ci_high": 0.7462792431037326
+        },
+        {
+          "arm": "margin alone (total)",
+          "auc": 0.9381009615384617,
+          "ci_low": 0.8844958848712687,
+          "ci_high": 0.9798509552642884
+        },
+        {
+          "arm": "margin alone (free)",
+          "auc": 0.8808092948717948,
+          "ci_low": 0.8065731859883236,
+          "ci_high": 0.9427268560340208
+        },
+        {
+          "arm": "learned, potency-only features (LR)",
+          "auc": 0.6732772435897436,
+          "ci_low": 0.5730177340775167,
+          "ci_high": 0.7630830051928178
+        },
+        {
+          "arm": "learned, exposure-aware features (LR)",
+          "auc": 0.9517227564102564,
+          "ci_low": 0.8973753437238484,
+          "ci_high": 0.9892501245407559
+        },
+        {
+          "arm": "learned, potency-only features (GB)",
+          "auc": 0.6798878205128205,
+          "ci_low": 0.568469387755102,
+          "ci_high": 0.7723186582996228
+        },
+        {
+          "arm": "learned, exposure-aware features (GB)",
+          "auc": 0.9330929487179487,
+          "ci_low": 0.869709269825514,
+          "ci_high": 0.9809585825564414
+        }
+      ],
+      "comparisons": [
+        {
+          "comparison": "learned, exposure-aware features (LR) minus learned, potency-only features (LR)",
+          "primary": true,
+          "delta_auc": 0.2784455128205128,
+          "ci_low": 0.19626871642881413,
+          "ci_high": 0.3754542528493033,
+          "share_of_draws_leq_0": 0.0
+        },
+        {
+          "comparison": "learned, exposure-aware features (GB) minus learned, potency-only features (GB)",
+          "primary": false,
+          "delta_auc": 0.2532051282051282,
+          "ci_low": 0.15131849122412244,
+          "ci_high": 0.370350210326939,
+          "share_of_draws_leq_0": 0.0
+        },
+        {
+          "comparison": "margin alone (free) minus potency alone",
+          "primary": false,
+          "delta_auc": 0.2171474358974359,
+          "ci_low": 0.1143553190991334,
+          "ci_high": 0.32905175295039635,
+          "share_of_draws_leq_0": 0.0
+        },
+        {
+          "comparison": "margin alone (total) minus potency alone",
+          "primary": false,
+          "delta_auc": 0.27443910256410275,
+          "ci_low": 0.18342306374756565,
+          "ci_high": 0.3759161411798858,
+          "share_of_draws_leq_0": 0.0
+        },
+        {
+          "comparison": "learned, exposure-aware features (LR) minus rule of thumb (dose >= 100 mg, logP >= 3)",
+          "primary": false,
+          "delta_auc": 0.2770432692307693,
+          "ci_low": 0.2046881611238046,
+          "ci_high": 0.35271872571447477,
+          "share_of_draws_leq_0": 0.0
+        }
+      ],
+      "outcome_case": "1: paired difference positive, CI excludes zero"
+    },
+    "exploratory": {
+      "endpoint": "narrow",
+      "status": "exploratory, added after the first evaluation run; not pre-registered",
+      "arms": [
+        {
+          "arm": "exploratory: total Cmax alone",
+          "auc": 0.9028445512820513,
+          "ci_low": 0.833130013368984,
+          "ci_high": 0.9577334349010284
+        },
+        {
+          "arm": "exploratory: daily dose alone",
+          "auc": 0.8791065705128205,
+          "ci_low": 0.7991635044642857,
+          "ci_high": 0.9421592573882294
+        },
+        {
+          "arm": "exploratory: free Cmax alone",
+          "auc": 0.8129006410256411,
+          "ci_low": 0.7332985584363578,
+          "ci_high": 0.8894608850999811
+        }
+      ],
+      "comparisons": [
+        {
+          "comparison": "margin alone (total) minus exploratory: total Cmax alone",
+          "delta_auc": 0.03525641025641035,
+          "ci_low": -0.005896541379122233,
+          "ci_high": 0.08253893247388851,
+          "share_of_draws_leq_0": 0.0455
+        },
+        {
+          "comparison": "margin alone (free) minus exploratory: free Cmax alone",
+          "delta_auc": 0.06790865384615374,
+          "ci_low": 0.01419241617657246,
+          "ci_high": 0.12185420897330893,
+          "share_of_draws_leq_0": 0.006
+        },
+        {
+          "comparison": "exploratory: total Cmax alone minus potency alone",
+          "delta_auc": 0.2391826923076924,
+          "ci_low": 0.12389345348529018,
+          "ci_high": 0.36034369067394395,
+          "share_of_draws_leq_0": 0.0
+        }
+      ]
+    }
+  }
+}

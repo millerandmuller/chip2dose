@@ -160,29 +160,40 @@ def result_line(name: str, basis: str, margin: float, band: tuple[float, float],
     )
 
 
-def compute(inp: MarginInput, threshold: Threshold, rng: np.random.Generator | None = None,
-            n: int = config.MC_SAMPLES) -> MarginResult:
-    rng = rng if rng is not None else np.random.default_rng(config.MC_SEED)
+@dataclass
+class Propagated:
+    margin_total: float
+    total_band: tuple[float, float]
+    margin_free: float
+    free_band: tuple[float, float]
 
+
+def propagate(inp: MarginInput, rng: np.random.Generator, n: int = config.MC_SAMPLES) -> Propagated:
+    """Margins and their bands, with no judgement attached."""
     pod = inp.pod.sample(rng, n)
     cmax = inp.cmax.sample(rng, n)
     total = pod / cmax
     margin_total = inp.pod.point / inp.cmax.point
     total_band = band_of(total, margin_total)
-
     if inp.fu_plasma is None:
-        margin_free, free_band = float("nan"), (float("nan"), float("nan"))
-    else:
-        free = total * inp.fu_medium.sample(rng, n) / inp.fu_plasma.sample(rng, n)
-        margin_free = margin_total * inp.fu_medium.point / inp.fu_plasma.point
-        free_band = band_of(free, margin_free)
+        return Propagated(margin_total, total_band, float("nan"), (float("nan"), float("nan")))
+    free = total * inp.fu_medium.sample(rng, n) / inp.fu_plasma.sample(rng, n)
+    margin_free = margin_total * inp.fu_medium.point / inp.fu_plasma.point
+    return Propagated(margin_total, total_band, margin_free, band_of(free, margin_free))
+
+
+def compute(inp: MarginInput, threshold: Threshold, rng: np.random.Generator | None = None,
+            n: int = config.MC_SAMPLES) -> MarginResult:
+    """Margins, bands and a verdict against a stated convention threshold."""
+    rng = rng if rng is not None else np.random.default_rng(config.MC_SEED)
+    p = propagate(inp, rng, n)
 
     if threshold.basis == "free":
         if inp.fu_plasma is None:
             raise ValueError(f"{inp.name}: free-basis threshold requested but fraction unbound is unknown")
-        ref_margin, ref_band = margin_free, free_band
+        ref_margin, ref_band = p.margin_free, p.free_band
     else:
-        ref_margin, ref_band = margin_total, total_band
+        ref_margin, ref_band = p.margin_total, p.total_band
 
     verdict = classify(ref_band, threshold.value, inp.pod_censored)
     line = result_line(inp.name, threshold.basis, ref_margin, ref_band, threshold, verdict, inp.pod_censored)
@@ -190,18 +201,18 @@ def compute(inp: MarginInput, threshold: Threshold, rng: np.random.Generator | N
     equivalent, equivalent_band = None, None
     if inp.dose_mg is not None and np.isfinite(inp.dose_mg):
         # Linear PK: the daily dose at which total Cmax would reach the chip's toxic concentration.
-        equivalent = inp.dose_mg * margin_total
-        equivalent_band = (inp.dose_mg * total_band[0], inp.dose_mg * total_band[1])
+        equivalent = inp.dose_mg * p.margin_total
+        equivalent_band = (inp.dose_mg * p.total_band[0], inp.dose_mg * p.total_band[1])
 
     assumptions = list(inp.assumptions)
     if equivalent is not None:
         assumptions.append("equivalent daily dose assumes linear pharmacokinetics (Cmax proportional to dose)")
     return MarginResult(
         name=inp.name,
-        margin_total=margin_total,
-        margin_free=margin_free,
-        total_band=total_band,
-        free_band=free_band,
+        margin_total=p.margin_total,
+        margin_free=p.margin_free,
+        total_band=p.total_band,
+        free_band=p.free_band,
         censored=inp.pod_censored,
         threshold=threshold,
         verdict=verdict,
