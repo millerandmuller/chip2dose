@@ -201,7 +201,7 @@ effect on this benchmark, and the report does not claim it settles the question.
 the tool is built for. A drug can be in this benchmark only if it reached patients, and a drug that reached patients has
 a measured clinical Cmax by construction — so "exposure alone" is available for all 220 of these drugs and for none of
 the compounds a chip lab tests before any human dose exists. That asymmetry is measured rather than argued: of the 136
-chemicals on the neural chip, 21 have any public human exposure value and 13 of those only a predicted one; for 61 of the
+chemicals on the neural chip, 21 have any public human exposure value, 13 of them through a predicted one; for 61 of the
 82 active chemicals — 115 of all 136 — no margin is computed at all, because the missing half is the exposure and not the
 chip (`results/neural_coverage.csv`, Section 7.4). The benchmark is therefore the right place to test whether
 exposure-aware features separate outcomes better than potency alone, and the wrong place to estimate what a chip
