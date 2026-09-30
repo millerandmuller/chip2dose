@@ -190,9 +190,13 @@ the benchmark was built. It means drugs that were inactive at every tested conce
 construction, and potency's weakness here is partly a property of the benchmark and not only of potency.
 
 **Second: what the chip adds over exposure alone, assembled in one place** (the question the Oct 20–30 defense will
-ask, and the one a problem owner asks first). On the primary endpoint total Cmax alone reaches AUC 0.845, and the
-margin's increment over it is small: +0.044 [+0.003, +0.090] on total concentrations, +0.078 [+0.026, +0.132] on free;
-on the narrower endpoint the total increment's interval includes zero (+0.035 [−0.006, +0.083]). That is the size of the
+ask, and the one a problem owner asks first). Each concentration basis is its own baseline, and the margin's increment
+is small over both. On the primary endpoint: total Cmax alone reaches AUC 0.845 and the margin on total concentrations
+reaches 0.889, an increment of +0.044 [+0.003, +0.090]; free Cmax alone reaches 0.745 and the margin on free
+concentrations reaches 0.824, an increment of +0.078 [+0.026, +0.132]. The section states both baselines explicitly
+because the larger increment is the one over the weaker baseline: the free margin arm sits *below* the 0.845 that total
+Cmax alone reaches, so adding +0.078 to 0.845 produces a number this report does not contain. On the narrower endpoint
+the total increment's interval includes zero (+0.035 [−0.006, +0.083]). That is the size of the
 effect on this benchmark, and the report does not claim it settles the question. What it does not measure is the setting
 the tool is built for. A drug can be in this benchmark only if it reached patients, and a drug that reached patients has
 a measured clinical Cmax by construction — so "exposure alone" is available for all 220 of these drugs and for none of

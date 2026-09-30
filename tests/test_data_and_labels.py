@@ -97,13 +97,23 @@ BENCHMARK_ASSAY_LABELS = {
     "ToxCastAPR_HepG2_MitoMembPot_72hr", "Williams2019lowestPOD", "medianBSEPIC50",
     "terBraak2024lowestPOD",
 }
-# Drugs (of 220) whose POD list CONTAINS this assay - the "117 / 113 / 79" in the prose.
+# Drugs (of 220) whose POD list CONTAINS this assay - the "149 / 117 / 113 / 79" in the prose.
 BENCHMARK_ASSAY_PRESENCE = {
-    "Aleo2019CytoToxTHLE": 117, "Aleo2019CytoToxHPG2": 113, "CellPaintCytoToxPOD": 79,
+    "medianBSEPIC50": 149, "Aleo2019CytoToxTHLE": 117, "Aleo2019CytoToxHPG2": 113,
+    "CellPaintCytoToxPOD": 79,
 }
-# Drugs (of 220) whose LOWEST POD is a BSEP IC50 - the "70 of the 220" in the prose. A different
-# question from presence (149 carry one somewhere), and the one the sentence actually makes.
-BSEP_DECIDES_THE_LOWEST_POD = 70
+# Drugs (of 220) whose LOWEST POD this assay is - the "70 / 9 / 18 / 27" in the prose. A different
+# question from presence and the one the sentence actually makes; the two were published mixed into
+# one list once, where they summed to 379 against a denominator of 220, so both are pinned and the
+# deciders are asserted to sum to exactly the 220 drugs.
+BENCHMARK_ASSAY_DECIDES = {
+    "medianBSEPIC50": 70, "Aleo2019CytoToxTHLE": 9, "Aleo2019CytoToxHPG2": 18,
+    "CellPaintCytoToxPOD": 27,
+}
+BSEP_DECIDES_THE_LOWEST_POD = BENCHMARK_ASSAY_DECIDES["medianBSEPIC50"]
+# Of the 23 labels, this many are some drug's lowest POD. The prose derives two figures from it:
+# "14 further labels" beyond the four named above, and "5 of the 23 never produce any lowest POD".
+LABELS_THAT_DECIDE_AT_LEAST_ONE = 18
 BENCHMARK_N = 220
 # Tokens that would make a label an organ-chip / microphysiological readout.
 ORGAN_CHIP_TOKENS = {"chip", "organ", "organoid", "spheroid", "mps", "microphysiological", "3d"}
@@ -149,8 +159,14 @@ def test_the_benchmark_assay_composition_the_disclosure_states_is_pinned_to_lite
         assert np.isclose(lowest, row["lowest_pod_uM"], rtol=1e-6)
         deciders[sources[values.index(lowest)]] += 1
     assert ties == 0
-    assert deciders["medianBSEPIC50"] == BSEP_DECIDES_THE_LOWEST_POD
+    assert {k: deciders[k] for k in BENCHMARK_ASSAY_DECIDES} == BENCHMARK_ASSAY_DECIDES
     assert sum(deciders.values()) == BENCHMARK_N
+    # The prose also states how the other 96 drugs are spread: 14 further labels decide at least one,
+    # and 5 of the 23 decide none. Both follow from this count, so it is pinned rather than implied.
+    assert len(deciders) == LABELS_THAT_DECIDE_AT_LEAST_ONE
+    # Presence and decider counts are two different questions about the same four assays, and the
+    # prose states both; every decider count must be no larger than that assay's presence count.
+    assert all(deciders[k] <= present[k] for k in BENCHMARK_ASSAY_DECIDES)
     # The second route to the same figure: equality with the drug's own BSEP IC50 column.
     assert int(np.isclose(table["lowest_pod_uM"], table["bsep_ic50_uM"], rtol=1e-9).sum()) == \
         BSEP_DECIDES_THE_LOWEST_POD

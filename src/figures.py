@@ -144,10 +144,22 @@ def pair_view(margins: pd.DataFrame, key_a: str, key_b: str, path: Path) -> Path
     return _save(fig, path)
 
 
+def _withdrawal_status(compound: str) -> str:
+    """'withdrawn' / 'not withdrawn' from the DILIrank label section. Shared by the dose view and the
+    card so the two can never disagree about a drug's regulatory fate."""
+    clinical = labels.dilirank_label(compound)
+    return "withdrawn" if clinical.found and "withdrawn" in clinical.text.lower() else "not withdrawn"
+
+
 def dose_view(margins: pd.DataFrame, pairs: pd.DataFrame, key_a: str, key_b: str, path: Path) -> Path:
     """The output in real units: the daily dose at which the chip's toxic concentration is reached,
     next to the dose patients take. Illustrates what the tool returns; it is not the comparative
-    evidence (that is the benchmark), and the footer says so."""
+    evidence (that is the benchmark), and the footer says so.
+
+    The conversion is on TOTAL concentration by construction (`margin.compute` multiplies the dose by
+    `margin_total`), so the basis is named in the title, on the axis and in the footnote: on the free
+    basis the same pair's derived doses move and each prescribed dose changes side of its band, which
+    is why the basis-robust comparison is the margin figure and not this one."""
     by_key = margins.set_index("key")
     rows = sorted([by_key.loc[key_a], by_key.loc[key_b]], key=lambda r: r["garside_rank"])
     for row in rows:
@@ -171,20 +183,18 @@ def dose_view(margins: pd.DataFrame, pairs: pd.DataFrame, key_a: str, key_b: str
         ax.annotate(margin.dose_relation(dose, lo, hi, prescribed), (0.99, y + 0.46), xycoords=("axes fraction", "data"),
                     ha="right", va="center", fontsize=15, color=colour, weight="bold")
 
-    names = []
-    for row in rows:
-        clinical = labels.dilirank_label(row["compound"])
-        status = "withdrawn" if clinical.found and "withdrawn" in clinical.text.lower() else "not withdrawn"
-        names.append(f"{row['compound']}\n{status}; Garside rank {row['garside_rank']}")
+    names = [f"{row['compound']}\n{_withdrawal_status(row['compound'])}; Garside rank {row['garside_rank']}"
+             for row in rows]
     ax.set_yticks(ypos)
     ax.set_yticklabels(names, fontsize=16)
     for tick, colour in zip(ax.get_yticklabels(), colours):
         tick.set_color(colour)
     _log_axis(ax, values, pad=3.0)
     ax.set_ylim(-0.7, 1.8)
-    ax.set_xlabel("mg per day (log scale)")
+    ax.set_xlabel("mg per day (log scale); conversion on total plasma concentration")
     ax.grid(axis="x", alpha=0.25)
-    ax.set_title(f"{rows[0]['compound']} and {rows[1]['compound']}: the chip result as a daily dose", fontsize=22)
+    ax.set_title(f"{rows[0]['compound']} and {rows[1]['compound']}: the chip result as a daily dose, "
+                 "on total concentration", fontsize=22)
 
     pair = pairs[pairs["clinically_worse"].eq(rows[0]["compound"]) & pairs["comparator"].eq(rows[1]["compound"])]
     potency_note = (f"Chip potency alone already ranks {rows[0]['compound']} as more toxic "
@@ -192,49 +202,74 @@ def dose_view(margins: pd.DataFrame, pairs: pd.DataFrame, key_a: str, key_b: str
                     np.isfinite(pair["potency_fold"].iloc[0]) else "")
     fig.text(0.01, -0.08,
              f"{potency_note}This pair illustrates what the tool returns; the comparison with potency alone is the "
-             "220-drug benchmark. Chip-derived dose = clinical dose x (chip toxic concentration / Cmax at that dose), "
-             "assuming linear pharmacokinetics; dose and dose-matched Cmax from Geci et al. 2026; chip data Ewart et al. 2022; "
-             "withdrawal status from FDA DILIrank 2.0.",
+             "220-drug benchmark. Chip-derived dose = clinical dose x (chip toxic concentration / TOTAL Cmax at that "
+             "dose), assuming linear pharmacokinetics; dose and dose-matched Cmax from Geci et al. 2026; chip data "
+             "Ewart et al. 2022; withdrawal status from FDA DILIrank 2.0. The basis matters: run the same conversion "
+             "on free (protein-binding-corrected) concentration - the basis the Liver-Chip convention threshold of "
+             f"{config.THRESHOLDS['liver_free_375'].value:g} is defined on - and each prescribed dose changes which "
+             "side of its band it falls on, so this comparison is basis-dependent. The pair's margin ordering is not: "
+             "the clinically worse drug has the smaller margin on both bases (columns margin_free and margin_total in "
+             "results/liver_margin_table.csv). The free-basis margin is the one pair_view.png and card.png show.",
              fontsize=11, color=GREY, wrap=True)
     return _save(fig, path)
 
 
+def card_caption(margin_a: float, margin_b: float) -> str:
+    """The card's one caption line. A separate pure function so a test can assert the sentence the
+    card carries - the basis word above all - against live numbers instead of against source text."""
+    fold = max(margin_a, margin_b) / min(margin_a, margin_b)
+    return f"Liver-Chip safety margin on free concentration: {fold:.0f}-fold apart, same chip, same lab."
+
+
 def card_image(margins: pd.DataFrame, key_a: str, key_b: str, path: Path,
                aspect: dict | None = None) -> Path:
-    """The submission card: the same hero-pair numbers as `dose_view`, composed for a small card.
+    """The submission card: the hero pair's safety margin on the free basis, composed for a small card.
 
     Not a shrunk figure. It is read at roughly 300 px wide in a gallery grid, so everything that only
-    works at full size is gone - no axis, no ticks, no grid, no footnote - and what remains is the two
-    compounds, the chip-derived daily dose with its band, and the dose patients took. `aspect` defaults
-    to `CARD` (560 x 280, the size the Kaggle editor asks for); pass another dict to retarget it."""
+    works at full size is gone - no axis, no ticks, no grid - and what remains is the two compounds
+    with their clinical fate, the margin with its band, and the published convention threshold.
+
+    It shows the margin rather than the equivalent daily dose because this is the only figure with no
+    room for a footnote, and the dose comparison is basis-dependent (see `dose_view`) while the margin
+    orders this pair the same way on total and on free concentration. The basis is on the card's face.
+    `aspect` defaults to `CARD` (560 x 280, the size the Kaggle editor asks for); pass another dict to
+    retarget it."""
     by_key = margins.set_index("key")
     rows = sorted([by_key.loc[key_a], by_key.loc[key_b]], key=lambda r: r["garside_rank"])
     for row in rows:
-        if not np.isfinite(row["equivalent_dose_mg"]):
-            raise ValueError(f"{row['compound']}: no dose-matched Cmax, no equivalent daily dose to show")
+        # A censored POD makes the margin a lower bound, and a card has no room to say so.
+        if bool(row["censored"]) or not np.isfinite(row["margin_free"]):
+            raise ValueError(f"{row['compound']}: margin on the free basis is not a single measured "
+                             "value, so it cannot go on a card without a footnote")
 
+    threshold = rows[0]["threshold"]
     fig, ax = plt.subplots(**(aspect or CARD))
-    fig.subplots_adjust(left=0.26, right=0.98, top=0.70, bottom=0.08)
-    values = []
+    fig.subplots_adjust(left=0.30, right=0.97, top=0.66, bottom=0.10)
+    # The axis is fixed before anything is drawn, so each label can be anchored on the side of its
+    # marker that has room: the convention line is the rightmost mark and a centred label crosses it.
+    _log_axis(ax, [threshold] + [v for r in rows for v in (r["band_low"], r["band_high"], r["margin_free"])],
+              pad=5.0)
+    midpoint = float(np.sqrt(np.prod(ax.get_xlim())))  # geometric mean = the visual centre of a log axis
     for row, colour, y in zip(rows, [VERMILLION, BLUE], [1, 0]):
-        lo, hi = row["equivalent_dose_band_low"], row["equivalent_dose_band_high"]
-        dose, prescribed = row["equivalent_dose_mg"], row["clinical_dose_mg"]
-        values += [lo, hi, prescribed]
+        lo, hi = row["band_low"], row["band_high"]
+        value = row["margin_free"]
         ax.plot([lo, hi], [y, y], color=colour, lw=9, alpha=0.3, solid_capstyle="butt")
-        ax.plot(dose, y, "o", color=colour, ms=9)
-        ax.annotate(f"chip: {_fmt(dose)} mg/day ({_fmt(lo)}-{_fmt(hi)})", (dose, y), textcoords="offset points",
-                    xytext=(0, 11), ha="center", fontsize=11, color=colour)
-        ax.plot(prescribed, y, "D", color=BLACK, ms=8)
-        ax.annotate(f"patients: {_fmt(prescribed)}", (prescribed, y), textcoords="offset points",
-                    xytext=(0, -20), ha="center", fontsize=11)
+        ax.plot(value, y, "o", color=colour, ms=9)
+        right_half = value > midpoint
+        ax.annotate(f"margin {_fmt(value)}x ({_fmt(lo)}-{_fmt(hi)})", (value, y), textcoords="offset points",
+                    xytext=(-7 if right_half else 0, 11), ha="right" if right_half else "center",
+                    fontsize=11, color=colour)
+
+    ax.axvline(threshold, color=BLACK, ls="--", lw=1.2)
+    ax.annotate(f"convention {threshold:g}", (threshold, 1.62), xytext=(-5, 0), textcoords="offset points",
+                ha="right", va="center", fontsize=10)
 
     ax.set_yticks([1, 0])
-    ax.set_yticklabels([r["compound"] for r in rows], fontsize=12)
+    ax.set_yticklabels([f"{r['compound']}\n{_withdrawal_status(r['compound'])}" for r in rows], fontsize=11)
     for tick, colour in zip(ax.get_yticklabels(), [VERMILLION, BLUE]):
         tick.set_color(colour)
     ax.tick_params(axis="y", length=0)
-    _log_axis(ax, values, pad=5.0)
-    ax.set_ylim(-0.75, 1.75)
+    ax.set_ylim(-0.6, 1.9)
     # Everything a full-size figure can afford and a 300 px card cannot. A log scale keeps drawing
     # minor ticks after set_xticks([]), so the locator is cleared too, not just the labels.
     ax.set_xticks([])
@@ -242,9 +277,11 @@ def card_image(margins: pd.DataFrame, key_a: str, key_b: str, path: Path,
     ax.tick_params(axis="x", which="both", length=0)
     for side in ("left", "bottom"):
         ax.spines[side].set_visible(False)
-    # Two lines, not one: at this width a single line of the sentence runs off the canvas.
-    fig.text(0.02, 0.93, "An organ-chip gives a concentration.", fontsize=12.5, weight="bold", va="top")
-    fig.text(0.02, 0.80, "A patient gets a dose.", fontsize=12.5, weight="bold", va="top")
+    # The one surface with no footnote, so the basis and the fold are stated, not implied.
+    fig.text(0.02, 0.965, "An organ-chip gives a concentration. A patient gets a dose.",
+             fontsize=11.5, weight="bold", va="top")
+    fig.text(0.02, 0.855, card_caption(rows[0]["margin_free"], rows[1]["margin_free"]),
+             fontsize=9.5, color=GREY, va="top")
     return _save(fig, path, bbox_inches=fig.bbox_inches)
 
 

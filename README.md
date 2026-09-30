@@ -99,10 +99,15 @@ complete check is therefore a comparison against commit `a76e7e9` in the git his
 | **learned, exposure-aware features** | **0.89 [0.83, 0.94]** |
 | **paired difference (primary)** | **+0.24 [+0.15, +0.34]** |
 
-**What the lowest POD is measured in.** Geci et al.'s `lowestPOD` is the lowest in-vitro value across 17 published
-hepatotoxicity datasets, 23 assay readouts in all: for 70 of the 220 drugs the lowest POD is a BSEP inhibition IC50, and
-the rest come from THLE and HepG2 cytotoxicity in cell-line monolayers (117 and 113 drugs carry one), Cell Painting (79),
-ToxCast HepG2 imaging and mitochondrial assays - none of the 23 readouts is an organ-chip measurement. A clinical DILI
+**What the lowest POD is measured in.** Geci et al.'s `lowestPOD` is the lowest in-vitro value across the 17 published
+hepatotoxicity datasets the authors integrated, and across the 220 drugs analysed here those values carry 23 distinct
+assay labels. "Which assay produced the lowest POD" and "which assays a drug was tested in" are two different counts, so
+both are given. Produced the lowest POD: a BSEP inhibition IC50 for 70 of the 220 drugs, Cell Painting cytotoxicity for
+27, HepG2 cytotoxicity for 18, THLE cytotoxicity for 9; the remaining 96 drugs are spread over 14 further labels -
+per-publication lowest-POD aggregates, ToxCast HepG2 imaging and mitochondrial readouts, and a second transporter assay
+(MRP2) - and 5 of the 23 labels never produce any drug's lowest POD. Merely present among a drug's points of departure:
+BSEP for 149 drugs, THLE for 117, HepG2 for 113, Cell Painting for 79. None of the 23 labels is an organ-chip
+measurement, and the most frequent single label is a transporter-inhibition assay. A clinical DILI
 outcome for 220 drugs exists only for drugs that reached patients, and those drugs were characterised in these
 conventional assays, so the benchmark is where the thesis can be tested at this scale while the chip is where the method
 is applied (27 Liver-Chip drugs, 136 neural chemicals) - and `results/neural_coverage.csv` counts what that costs: for
@@ -168,10 +173,14 @@ class definitions. The matched rows above are the comparison.
 
 ## Findings we report against ourselves
 
-- **What the chip adds over exposure alone, in one place.** On the primary endpoint total Cmax alone reaches AUC 0.845,
-  and the margin's increment over it is small: +0.044 [+0.003, +0.090] on total concentrations, +0.078 [+0.026, +0.132]
-  on free; on the narrower endpoint the total increment's interval includes zero (+0.035 [-0.006, +0.083]). That is the
-  size of the effect on this benchmark and we do not claim it settles the question. What it does not measure is the
+- **What the chip adds over exposure alone, in one place.** Each concentration basis is its own baseline, and the
+  margin's increment is small over both. On the primary endpoint: total Cmax alone reaches AUC 0.845 and the margin on
+  total concentrations reaches 0.889, an increment of +0.044 [+0.003, +0.090]; free Cmax alone reaches 0.745 and the
+  margin on free concentrations reaches 0.824, an increment of +0.078 [+0.026, +0.132]. The larger increment is the one
+  over the weaker baseline - the free margin arm sits *below* the 0.845 that total Cmax alone reaches, not above it - so
+  the two increments cannot be read against a single baseline. On the narrower endpoint the total increment's interval
+  includes zero (+0.035 [-0.006, +0.083]). That is the size of the effect on this benchmark and we do not claim it
+  settles the question. What it does not measure is the
   setting the tool is built for: a drug can be in this benchmark only if it reached patients, and a drug that reached
   patients has a measured clinical Cmax by construction - so "exposure alone" is available for all 220 of these drugs and
   for none of the compounds a chip lab tests before any human dose exists. That asymmetry is measured rather than

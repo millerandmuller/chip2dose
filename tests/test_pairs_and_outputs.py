@@ -257,12 +257,74 @@ def test_the_run_writes_the_submission_card_at_the_size_the_editor_requires(tmp_
     assert _png_size(card) == (560, 280)
 
 
-def test_the_card_refuses_a_pair_with_no_equivalent_daily_dose(tmp_path):
-    """Same guard as the dose view: the card shows a dose or it is not drawn. It must never fall back
-    to a compound whose equivalent dose does not exist."""
+def test_the_card_refuses_a_pair_whose_margin_is_only_a_lower_bound(tmp_path):
+    """The card carries the margin and has no room for a footnote, so it must never show a censored
+    POD's margin, which is a lower bound and not a measured value. Ambrisentan's POD is censored."""
     import pytest
     with pytest.raises(ValueError):
         figures.card_image(liver.margin_table(), "ambrisentan", "sitaxsentan", tmp_path / "x.png")
+
+
+# The hero pair's free-basis margins and their fold: spoken in demo Beat 3, printed on card.png and
+# on pair_view.png. Literals, because the basis is the whole point of the claim - the same pair on
+# total concentration separates 93-fold, and the equivalent-dose comparison changes direction with
+# the basis - so a silent switch of basis or data vintage has to turn this red, not move the number.
+HERO_MARGINS_FREE = {"troglitazone": 1.42309, "pioglitazone": 94.0772}
+HERO_MARGIN_FOLD_FREE = 66
+HERO_CONVENTION_THRESHOLD = 375.0
+
+
+def test_the_hero_pairs_free_margins_and_the_fold_the_demo_speaks_are_pinned():
+    """Beat 3 says '1.4x', '94x', '66-fold apart' and 'below the convention of 375'. A recorded video
+    cannot be re-run, so each of those is compared with a literal here rather than re-derived from the
+    table that produced it. The verdicts are pinned too: the claim is that the convention puts BOTH on
+    the same side while the distance from it separates them, which is false if either goes ABOVE."""
+    import numpy as np
+
+    table = liver.margin_table().set_index("key")
+    for key, expected in HERO_MARGINS_FREE.items():
+        row = table.loc[key]
+        assert np.isclose(row["margin_free"], expected, rtol=1e-5), (key, row["margin_free"])
+        assert not bool(row["censored"]), key
+        assert row["verdict"] == "BELOW", (key, row["verdict"])
+        assert row["threshold"] == HERO_CONVENTION_THRESHOLD, key
+    a, b = (table.loc[k]["margin_free"] for k in HERO_MARGINS_FREE)
+    assert round(max(a, b) / min(a, b)) == HERO_MARGIN_FOLD_FREE
+    # The bands do not overlap, which is what "decisive" means here and what the card shows.
+    tro, pio = table.loc["troglitazone"], table.loc["pioglitazone"]
+    assert tro["band_high"] < pio["band_low"], (tro["band_high"], pio["band_low"])
+    # The ordering survives the other basis; only the dose comparison changes direction with it.
+    assert tro["margin_total"] < pio["margin_total"]
+
+
+def _rendered_card_text(tmp_path, monkeypatch):
+    """Every string the card actually draws. The figure is held open instead of being read back off
+    the PNG, so the check is on the rendered artists rather than on the source that composed them."""
+    import matplotlib.pyplot as plt
+    held = []
+    monkeypatch.setattr(plt, "close", held.append)
+    figures.card_image(liver.margin_table(), "troglitazone", "pioglitazone", tmp_path / "card.png")
+    fig = held[-1]
+    drawn = [t.get_text() for t in fig.texts]
+    for ax in fig.axes:
+        drawn += [t.get_text() for t in ax.texts] + [t.get_text() for t in ax.get_yticklabels()]
+    plt.close(fig)
+    return drawn
+
+
+def test_the_card_states_the_basis_and_shows_the_free_margins(tmp_path, monkeypatch):
+    """P2-1: the card is the only surface with no footnote, and the quantity that used to be on it -
+    the equivalent daily dose - changes direction on the other basis. So the card carries the margin,
+    and says which basis, on its face. Rendered text, because that is what a reviewer reads."""
+    drawn = " | ".join(_rendered_card_text(tmp_path, monkeypatch))
+    assert "free concentration" in drawn, drawn
+    assert f"{HERO_MARGIN_FOLD_FREE}-fold" in drawn, drawn
+    assert f"convention {HERO_CONVENTION_THRESHOLD:g}" in drawn, drawn
+    # The plotted values are the free margins (1.42x / 94.1x), not the total ones (0.03x / 2.8x).
+    assert "margin 1.42x" in drawn and "margin 94.1x" in drawn, drawn
+    assert "withdrawn" in drawn, drawn
+    # And the basis-dependent quantity is gone from this surface rather than merely relabelled.
+    assert "mg/day" not in drawn, drawn
 
 
 def test_roc_legend_labels_stay_short_enough_to_sit_inside_the_axes():
