@@ -83,6 +83,90 @@ SPOKEN_MEASURED_ROUTE = {
 }
 
 
+# The assay composition of the 220-drug benchmark, exactly as the README's "What the lowest POD is
+# measured in", brief Beat 4 and report outline 2.2 state it. Identities, not only counts: a renamed,
+# added or dropped assay must fail here, because whether a readout is an organ-chip measurement is a
+# judgement a human makes, and the disclosure claims of these 23 that none of them is.
+BENCHMARK_ASSAY_LABELS = {
+    "Albrecht2025EC10Max", "Aleo2019CytoToxHPG2", "Aleo2019CytoToxTHLE", "Aleo2019MitoInh",
+    "Aleo2019MitoUnc", "CellPaintCytoToxPOD", "Faes2024POD", "Gustafsson2013lowestPOD",
+    "Morgan2013MRP2IC50", "OBrien2006lowestPOD", "Persson2013lowestPOD", "Porceddu2012lowestPOD",
+    "Proctor2017lowestIC50", "Schadt2015lowestPOD", "ToxCastAPR_HepG2_CellLoss_24hr",
+    "ToxCastAPR_HepG2_CellLoss_72hr", "ToxCastAPR_HepG2_MitoMass_24hr",
+    "ToxCastAPR_HepG2_MitoMass_72hr", "ToxCastAPR_HepG2_MitoMembPot_24hr",
+    "ToxCastAPR_HepG2_MitoMembPot_72hr", "Williams2019lowestPOD", "medianBSEPIC50",
+    "terBraak2024lowestPOD",
+}
+# Drugs (of 220) whose POD list CONTAINS this assay - the "117 / 113 / 79" in the prose.
+BENCHMARK_ASSAY_PRESENCE = {
+    "Aleo2019CytoToxTHLE": 117, "Aleo2019CytoToxHPG2": 113, "CellPaintCytoToxPOD": 79,
+}
+# Drugs (of 220) whose LOWEST POD is a BSEP IC50 - the "70 of the 220" in the prose. A different
+# question from presence (149 carry one somewhere), and the one the sentence actually makes.
+BSEP_DECIDES_THE_LOWEST_POD = 70
+BENCHMARK_N = 220
+# Tokens that would make a label an organ-chip / microphysiological readout.
+ORGAN_CHIP_TOKENS = {"chip", "organ", "organoid", "spheroid", "mps", "microphysiological", "3d"}
+
+
+def _label_tokens(label):
+    """'Aleo2019CytoToxTHLE' -> {'aleo','2019','cyto','tox','thle'}. Tokenised rather than substring-
+    matched, because 'Morgan2013MRP2IC50' contains the letters of 'organ' and is a transporter assay."""
+    import re
+    return {t.lower() for t in re.findall(r"[A-Z]+(?![a-z])|[A-Z][a-z]+|[a-z]+|\d+", label)}
+
+
+def test_the_benchmark_assay_composition_the_disclosure_states_is_pinned_to_literals():
+    """The headline AUCs run on this column, and the README, Beat 4 and the report outline each state
+    its composition. These counts were published wrong once (computed on the unfiltered 254-row loader
+    and counting presence where the sentence claims the minimum), so every figure that appears in prose
+    is re-derived here from the 220-drug analysis frame and compared against a literal."""
+    from collections import Counter
+
+    import numpy as np
+
+    from src import validate
+
+    table = validate.benchmark_table()
+    assert len(table) == BENCHMARK_N
+
+    present = Counter()
+    for sources in table["pod_sources"]:
+        for label in {str(s).strip() for s in sources if str(s).strip()}:
+            present[label] += 1
+    assert set(present) == BENCHMARK_ASSAY_LABELS          # identities, so a new assay fails
+    assert len(present) == 23                              # the number the prose states
+    assert {k: present[k] for k in BENCHMARK_ASSAY_PRESENCE} == BENCHMARK_ASSAY_PRESENCE
+
+    # Which assay produced each drug's lowest POD. No drug's minimum is tied between two assays, so
+    # the argmin is unambiguous; the tie count is asserted rather than assumed.
+    deciders, ties = Counter(), 0
+    for _, row in table.iterrows():
+        values, sources = list(row["pod_values_uM"]), [str(s).strip() for s in row["pod_sources"]]
+        assert values and len(values) == len(sources), row["name"]
+        lowest = min(values)
+        ties += sum(1 for v in values if np.isclose(v, lowest, rtol=1e-12)) > 1
+        assert np.isclose(lowest, row["lowest_pod_uM"], rtol=1e-6)
+        deciders[sources[values.index(lowest)]] += 1
+    assert ties == 0
+    assert deciders["medianBSEPIC50"] == BSEP_DECIDES_THE_LOWEST_POD
+    assert sum(deciders.values()) == BENCHMARK_N
+    # The second route to the same figure: equality with the drug's own BSEP IC50 column.
+    assert int(np.isclose(table["lowest_pod_uM"], table["bsep_ic50_uM"], rtol=1e-9).sum()) == \
+        BSEP_DECIDES_THE_LOWEST_POD
+
+
+def test_no_assay_in_the_benchmark_is_an_organ_chip_readout():
+    """The claim the A1 disclosure rests on, in the README, Beat 4 and report outline 2.2. It checks
+    the pinned label set, which the test above ties to the live data - the two together cover the
+    benchmark, and neither covers it alone."""
+    for label in BENCHMARK_ASSAY_LABELS:
+        assert not (_label_tokens(label) & ORGAN_CHIP_TOKENS), label
+    # The tokeniser earns its place only if it clears the label that a substring search gets wrong.
+    assert "organ" not in _label_tokens("Morgan2013MRP2IC50")
+    assert "chip" in _label_tokens("LiverChipPOD")
+
+
 def test_the_neural_counts_the_script_speaks_are_pinned_to_literals():
     potency, margins = neural.margin_table()
     coverage = neural.coverage(potency, margins)

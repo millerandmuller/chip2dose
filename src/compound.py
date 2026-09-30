@@ -129,8 +129,11 @@ def _literature_lines(key: str, chip: dict | None = None) -> list[str]:
     equivalent = row["dose_mg"] * p.margin_total
     band_low, band_high = row["dose_mg"] * p.total_band[0], row["dose_mg"] * p.total_band[1]
     lines = [
-        "Literature benchmark (different data, not the chip: lowest POD across published 2D in-vitro assays, "
-        "Geci et al. 2026). Its numbers differ from the chip's and are shown for comparison.",
+        # Not "2D in-vitro assays": the most frequent decider is a BSEP inhibition IC50 (the lowest POD
+        # for 70 of the 220 drugs), which is a transporter assay and not 2D cell culture.
+        "Literature benchmark (different data, not the chip: lowest POD across published in-vitro assays "
+        "- cell lines, high-content imaging and transporter assays, no organ chip among them, Geci et al. "
+        "2026). Its numbers differ from the chip's and are shown for comparison.",
         f"  lowest in-vitro POD {row['lowest_pod_uM']:.3g} uM (from {source}); "
         f"Cmax {row['cmax_uM']:.3g} uM at {row['dose_mg']:g} mg.",
     ]
