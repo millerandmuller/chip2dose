@@ -121,6 +121,12 @@
           "auc": 0.7453972868217054,
           "ci_low": 0.6608033503697491,
           "ci_high": 0.8226978550504764
+        },
+        {
+          "arm": "exploratory, post-hoc: number of assays alone",
+          "auc": 0.6550993217054264,
+          "ci_low": 0.5664578455537229,
+          "ci_high": 0.7406004018373815
         }
       ],
       "comparisons": [
@@ -331,6 +337,12 @@
           "auc": 0.8129006410256411,
           "ci_low": 0.7332985584363578,
           "ci_high": 0.8894608850999811
+        },
+        {
+          "arm": "exploratory, post-hoc: number of assays alone",
+          "auc": 0.7225560897435899,
+          "ci_low": 0.6344653925619835,
+          "ci_high": 0.8057962574319456
         }
       ],
       "comparisons": [

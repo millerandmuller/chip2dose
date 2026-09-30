@@ -1,11 +1,12 @@
 """Pair view, single-compound path and the no-score rule."""
 
 import pathlib
+import re
 import time
 
 import pandas as pd
 
-from src import compound, config, figures, liver, load, margin
+from src import compound, config, figures, liver, load, margin, neural, pod
 
 PROBABILITY_WORDS = ("probability", "proba", "score")
 
@@ -272,17 +273,31 @@ def test_the_card_refuses_a_pair_whose_margin_is_only_a_lower_bound(tmp_path):
 HERO_MARGINS_FREE = {"troglitazone": 1.42309, "pioglitazone": 94.0772}
 HERO_MARGIN_FOLD_FREE = 66
 HERO_CONVENTION_THRESHOLD = 375.0
-# The regulatory fate every figure must state for this pair, as a literal. The two surfaces that draw it
-# share one helper, so they can no longer disagree with each other - which is exactly why the helper's
-# output needs pinning here: they can now be wrong together.
+HERO_COMPOUNDS_ON_SCREEN = ("Troglitazone", "Pioglitazone")
+# Everything the y-tick labels state after the compound name, per figure, in FULL. Two literals rather
+# than one because the two figures legitimately draw different suffixes, and full strings rather than a
+# parsed first clause because the parse is where the blindness goes: splitting on ";" to reach
+# "withdrawn" also throws away the published severity rank drawn beside it, so a false clause appended
+# after the semicolon renders on the figure while an equality check reports exact agreement. The ranks
+# are Garside's published ordering, cross-checked against pair_table.csv (garside_worse / comparator).
 WITHDRAWAL_ON_SCREEN = {"Troglitazone": "withdrawn", "Pioglitazone": "not withdrawn"}
-# The basis clause each dose-bearing surface of dose_view.png must carry, surface by surface. Deleting any
-# one of these from the figure leaves the other three intact, so each needs its own assertion.
+DOSE_VIEW_STATUS_ON_SCREEN = {"Troglitazone": "withdrawn; Garside rank 1",
+                              "Pioglitazone": "not withdrawn; Garside rank 3"}
+# The basis clause each dose-bearing surface of dose_view.png must carry, keyed by the surface of the
+# axis that draws the doses. Deleting any one of these leaves the others intact, so each needs its own
+# assertion - and each is asserted on that axis rather than across `fig.axes`, because a clause on an
+# invisible pad axis satisfies a figure-wide check while the data axis's own label stays bare.
 DOSE_VIEW_BASIS = {
-    "titles": "on total concentration",
-    "xlabels": "conversion on total plasma concentration",
+    "title": "on total concentration",
+    "xlabel": "conversion on total plasma concentration",
 }
 DOSE_VIEW_FOOTNOTE_BASIS = ("TOTAL Cmax", "The basis matters", "basis-dependent")
+# results/summary.md is what README.md sends a reviewer to as "every headline number, generated", and it
+# composes the total-basis dose as a child bullet of the free-basis margin line, so the only basis word
+# within a reader's reach used to be the wrong one. The rule is per line, not per file: a file-wide
+# "contains a basis word" check is already satisfied by the validation section's "total Cmax alone" arms.
+SUMMARY_DOSE_LINE = re.compile(r"\d\s*mg/day")
+SUMMARY_DOSE_BASIS = ("on total concentration", "on free concentration")
 
 
 def test_the_hero_pairs_free_margins_and_the_fold_the_demo_speaks_are_pinned():
@@ -308,15 +323,28 @@ def test_the_hero_pairs_free_margins_and_the_fold_the_demo_speaks_are_pinned():
     assert tro["margin_total"] < pio["margin_total"]
 
 
-def _rendered_figure_parts(monkeypatch, render) -> dict[str, list[str]]:
-    """Every string a figure actually draws, keyed by the surface that draws it. The figure is held open
-    (`_save` closes it, so the close is what we intercept) instead of being read back off the PNG, so the
-    check is on the rendered artists rather than on the source that composed them.
+def _rendered_axis_parts(ax) -> dict:
+    """Every string ONE axis draws. Per axis, not per surface kind across `fig.axes`: a clause collected
+    from every axis proves "this figure names its basis somewhere", where the claim is "the axis that
+    draws the doses names its basis" - and those differ by an 0.005 x 0.005 `set_axis_off()` pad axis."""
+    return {
+        "title": ax.get_title(),
+        "xlabel": ax.get_xlabel(),
+        "ylabel": ax.get_ylabel(),
+        "texts": [t.get_text() for t in ax.texts],
+        "yticklabels": [t.get_text() for t in ax.get_yticklabels()],
+    }
 
-    Keyed rather than flattened, and shared rather than card-specific, for one reason each: an assertion
-    that names its own surface can only be turned green by that surface, and the edit that named the
-    concentration basis changed two figures - a rendered-text guard pointed at one of them is aimed at the
-    review instead of at the code."""
+
+def _rendered_figure_parts(monkeypatch, render) -> dict:
+    """Every string a figure actually draws: figure-level texts, plus one entry per axis. The figure is
+    held open (`_save` closes it, so the close is what we intercept) instead of being read back off the
+    PNG, so the check is on the rendered artists rather than on the source that composed them.
+
+    Shared rather than card-specific because the edit that named the concentration basis changed two
+    figures, and a rendered-text guard pointed at one of them is aimed at the review instead of at the
+    code. Keyed by axis rather than by surface kind because an assertion can only be trusted to be about
+    a surface if the surface it names is the one a reader looks at."""
     import matplotlib.pyplot as plt
     real_close, held = plt.close, []
     monkeypatch.setattr(plt, "close", held.append)
@@ -324,29 +352,52 @@ def _rendered_figure_parts(monkeypatch, render) -> dict[str, list[str]]:
     fig = held[-1]
     parts = {
         "figure_texts": [t.get_text() for t in fig.texts],
-        "titles": [ax.get_title() for ax in fig.axes],
-        "xlabels": [ax.get_xlabel() for ax in fig.axes],
-        "ylabels": [ax.get_ylabel() for ax in fig.axes],
-        "axes_texts": [t.get_text() for ax in fig.axes for t in ax.texts],
-        "yticklabels": [t.get_text() for ax in fig.axes for t in ax.get_yticklabels()],
+        "axes": [_rendered_axis_parts(ax) for ax in fig.axes],
     }
     real_close(fig)
     return parts
 
 
-def _flatten(parts: dict[str, list[str]]) -> str:
-    return " | ".join(s for surface in parts.values() for s in surface)
+def _axis_strings(axis: dict) -> list[str]:
+    """Every string on one axis, single labels and lists alike, read off the dict rather than from a
+    second copy of its keys - so a surface added to `_rendered_axis_parts` is covered without a matching
+    edit here, which is how the two would drift apart."""
+    flat = []
+    for value in axis.values():
+        flat.extend([value] if isinstance(value, str) else value)
+    return flat
 
 
-def _drawn_withdrawal_status(parts: dict[str, list[str]]) -> dict[str, str]:
-    """The regulatory fate each y-tick label actually states, per compound. Returned as an exact string
-    so a caller can compare by equality: `"withdrawn" in label` is satisfied by `"not withdrawn"`, which
-    is the one mutation a guard on this claim exists to catch."""
-    drawn = {}
-    for label in parts["yticklabels"]:
-        compound, _, rest = label.partition("\n")
-        drawn[compound] = rest.split(";")[0].strip()
-    return drawn
+def _flatten(parts: dict) -> str:
+    """Every string anywhere on the figure. Only for claims that really are figure-wide - on the card,
+    which is one small composition read at 300 px. Anything about a particular axis goes through
+    `_claim_axis` instead."""
+    strings = list(parts["figure_texts"])
+    for axis in parts["axes"]:
+        strings += _axis_strings(axis)
+    return " | ".join(strings)
+
+
+def _claim_axis(parts: dict, compounds=HERO_COMPOUNDS_ON_SCREEN) -> dict:
+    """The one axis that draws these compounds' rows, found by what it draws rather than by its index,
+    so an axis added in front of it does not silently move which surface the assertions are about.
+    Exactly one axis must match: two matching axes would make "the axis that draws the doses" ambiguous,
+    and zero means the figure stopped drawing the pair."""
+    named = [ax for ax in parts["axes"]
+             if {label.partition("\n")[0] for label in ax["yticklabels"]} >= set(compounds)]
+    assert len(named) == 1, [ax["yticklabels"] for ax in parts["axes"]]
+    return named[0]
+
+
+def _drawn_status_labels(axis: dict) -> dict[str, str]:
+    """Everything each y-tick label states after the compound name, in full and per compound, so a
+    caller can compare by equality. In full because every transform in front of an equality check is a
+    hole behind it: `"withdrawn" in label` is satisfied by `"not withdrawn"`, and splitting on ";" to
+    reach the first clause hides both a false clause appended after it and the severity rank the figure
+    draws there. If the parse exists because the real label carries extra content, that content is a
+    claim too."""
+    return {label.partition("\n")[0]: label.partition("\n")[2].strip()
+            for label in axis["yticklabels"]}
 
 
 def _rendered_card_parts(tmp_path, monkeypatch):
@@ -374,10 +425,11 @@ def test_the_card_states_the_basis_and_shows_the_free_margins(tmp_path, monkeypa
     assert f"convention {HERO_CONVENTION_THRESHOLD:g}" in drawn, drawn
     # The plotted values are the free margins (1.42x / 94.1x), not the total ones (0.03x / 2.8x).
     assert "margin 1.42x" in drawn and "margin 94.1x" in drawn, drawn
-    # By equality, not containment: "withdrawn" in label is also satisfied by "not withdrawn", so the
-    # containment form stayed green when the producer was inverted - and this is the factual claim the
-    # Oh! moment turns on, spoken aloud in the video and drawn on the first artifact a reviewer sees.
-    assert _drawn_withdrawal_status(parts) == WITHDRAWAL_ON_SCREEN, parts["yticklabels"]
+    # By equality on the FULL label, not containment: "withdrawn" in label is also satisfied by
+    # "not withdrawn", so the containment form stayed green when the producer was inverted - and this is
+    # the factual claim the Oh! moment turns on, spoken aloud in the video and drawn on the first
+    # artifact a reviewer sees. The card draws the status alone, with nothing appended.
+    assert _drawn_status_labels(_claim_axis(parts)) == WITHDRAWAL_ON_SCREEN, parts["axes"]
     # And the basis-dependent quantity is gone from this surface rather than merely relabelled.
     assert "mg/day" not in drawn, drawn
 
@@ -391,15 +443,66 @@ def test_dose_view_names_its_concentration_basis_on_every_surface(tmp_path, monk
     The sibling card got this guard in the round that added the labels; this figure got the labels and no
     guard, and four separate deletions - title, axis, footnote formula, footnote passage - each left the
     whole suite green. One assertion per surface, because a single flattened check would stay green while
-    three of the four are missing."""
+    three of the four are missing - and each surface is taken off the axis that actually draws the doses,
+    because keyed by surface KIND is not keyed by surface INSTANCE: collecting titles and axis labels
+    across `fig.axes` lets the clause live on an invisible pad axis while the data axis stays bare."""
     parts = _rendered_dose_view_parts(tmp_path, monkeypatch)
+    axis = _claim_axis(parts)
     for surface, clause in DOSE_VIEW_BASIS.items():
-        assert any(clause in s for s in parts[surface]), (surface, parts[surface])
+        assert clause in axis[surface], (surface, axis[surface])
     footnote = " | ".join(parts["figure_texts"])
     for clause in DOSE_VIEW_FOOTNOTE_BASIS:
         assert clause in footnote, (clause, footnote)
-    # The same regulatory claim as the card, drawn from the same shared helper, pinned on both surfaces.
-    assert _drawn_withdrawal_status(parts) == WITHDRAWAL_ON_SCREEN, parts["yticklabels"]
+    # The same regulatory claim as the card, drawn from the same shared helper, pinned on both surfaces -
+    # and here the full label, so the Garside rank this figure draws beside the status is pinned too.
+    assert _drawn_status_labels(axis) == DOSE_VIEW_STATUS_ON_SCREEN, axis["yticklabels"]
+
+
+def _composed_summary() -> str:
+    """`results/summary.md` as `run_demo.summary_text` composes it right now, from the live tables plus
+    the already-generated validation block. Read from the producer and not only off disk, because a rule
+    checked against a committed artifact cannot see a change to the code that writes it - dropping the
+    basis in the composer leaves the file on disk untouched and the check green.
+
+    `validation.json` supplies the validation argument, which is the same dict the run serialised, so the
+    slow step (grouped cross-validation and 2,000 bootstrap draws) is skipped and this costs ~2 s."""
+    import json
+
+    import run_demo
+    for required in ("summary.md", "validation.json"):
+        assert (config.RESULTS / required).exists(), f"{required} is missing; run `make` first"
+    validation = json.loads((config.RESULTS / "validation.json").read_text())
+    margins = liver.margin_table()
+    potency, neural_margins = neural.margin_table()
+    return run_demo.summary_text(pod.all_checks(), margins, liver.pair_table(margins), potency,
+                                 neural_margins, neural.coverage(potency, neural_margins), validation)
+
+
+def test_summary_md_states_no_dose_without_naming_its_basis():
+    """P2-1: the file README.md calls "every headline number, generated" composed the total-basis dose as
+    a CHILD BULLET of the free-basis margin line and contained no basis word anywhere, so the only basis
+    a reader could reach for that number was the wrong one - on both hero compounds, on the quantity
+    whose direction changes with the basis, in a file that ships in the public repo.
+
+    A file-level rule rather than the two literals, because the previous round fixed five surfaces that
+    PRINT a dose and missed the one that COMPOSES one: any future line here that states a dose has to
+    carry its basis on that same line. Per line and not per file for the same reason - a file-wide
+    "contains a basis word" check is already green from the validation section's "total Cmax alone" arm
+    names, forty lines away from any dose. The compounds are pinned too, so a dropped line fails rather
+    than vacuously passing an all-lines-satisfy check over an empty list.
+
+    Checked against the composer, with the committed file asserted to equal it. The file header says "do
+    not edit", and this is what makes that a checked claim rather than a request."""
+    composed = _composed_summary()
+    # The rule first, so a composer that drops the basis fails on the basis and not on the file compare.
+    dose_lines = [line for line in composed.splitlines() if SUMMARY_DOSE_LINE.search(line)]
+    named = {c for c in HERO_COMPOUNDS_ON_SCREEN for line in dose_lines if line.lstrip("- ").startswith(c)}
+    assert named == set(HERO_COMPOUNDS_ON_SCREEN), (named, dose_lines)
+    for line in dose_lines:
+        assert any(clause in line for clause in SUMMARY_DOSE_BASIS), line
+    # Then the artifact, which is what carries the rule into the public repo.
+    assert composed == (config.RESULTS / "summary.md").read_text(), \
+        "results/summary.md is not what run_demo composes from these inputs; re-run `make`"
 
 
 def test_roc_legend_labels_stay_short_enough_to_sit_inside_the_axes():

@@ -9,12 +9,12 @@
 - Liver-Chip 'both donors' MOS = combination rule: 18 checked, 0 mismatches (relative 1e-06)
 - Cmax agreement, Liver-Chip SD1 vs Geci et al.: 21 checked, 3 mismatches (within 3-fold)
 
-## Liver-Chip (27 drugs, Ewart et al. 2022)
+## Liver-Chip (27 drugs, Ewart et al. 2022) - margins on free concentration, dose conversion on total concentration
 
 - Pioglitazone: margin (free) 94.1x - below the convention threshold 375 (Liver-Chip, two donors: sensitivity 87% [62-96%], specificity 100% (27 drugs)). Band: 19.5x to 164x.
-  - Pioglitazone: chip-toxic concentration reached at 90.4 mg/day (band 39.6-291) vs 45 mg prescribed (linear PK assumed)
+  - Pioglitazone: chip-toxic concentration reached at 90.4 mg/day (on total concentration; band 39.6-291) vs 45 mg prescribed (linear PK assumed)
 - Troglitazone: margin (free) 1.42x - below the convention threshold 375 (Liver-Chip, two donors: sensitivity 87% [62-96%], specificity 100% (27 drugs)). Band: 0.054x to 2.52x.
-  - Troglitazone: chip-toxic concentration reached at 16.1 mg/day (band 16.1-61.7) vs 600 mg prescribed (linear PK assumed)
+  - Troglitazone: chip-toxic concentration reached at 16.1 mg/day (on total concentration; band 16.1-61.7) vs 600 mg prescribed (linear PK assumed)
 - Pair Troglitazone / Pioglitazone: potency differs 46.1-fold, free margin differs 66.1-fold; margin orders the pair like the clinic: True; opposite verdicts: False.
 - Free-margin verdicts against 375: {'BELOW': 14, 'INCONCLUSIVE (censored below threshold)': 9, 'STRADDLES': 4}
 
@@ -39,6 +39,7 @@
   - exploratory: total Cmax alone: AUC 0.845 [0.774, 0.908]
   - exploratory: daily dose alone: AUC 0.818 [0.742, 0.887]
   - exploratory: free Cmax alone: AUC 0.745 [0.661, 0.823]
+  - exploratory, post-hoc: number of assays alone: AUC 0.655 [0.566, 0.741]
   - margin alone (total) minus exploratory: total Cmax alone: +0.044 [+0.003, +0.090]
   - margin alone (free) minus exploratory: free Cmax alone: +0.078 [+0.026, +0.132]
   - exploratory: total Cmax alone minus potency alone: +0.198 [+0.074, +0.328]
@@ -71,6 +72,7 @@
   - exploratory: total Cmax alone: AUC 0.903 [0.833, 0.958]
   - exploratory: daily dose alone: AUC 0.879 [0.799, 0.942]
   - exploratory: free Cmax alone: AUC 0.813 [0.733, 0.889]
+  - exploratory, post-hoc: number of assays alone: AUC 0.723 [0.634, 0.806]
   - margin alone (total) minus exploratory: total Cmax alone: +0.035 [-0.006, +0.083]
   - margin alone (free) minus exploratory: free Cmax alone: +0.068 [+0.014, +0.122]
   - exploratory: total Cmax alone minus potency alone: +0.239 [+0.124, +0.360]

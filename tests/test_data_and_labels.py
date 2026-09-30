@@ -129,8 +129,14 @@ def _label_tokens(label):
 def test_the_benchmark_assay_composition_the_disclosure_states_is_pinned_to_literals():
     """The headline AUCs run on this column, and the README, Beat 4 and the report outline each state
     its composition. These counts were published wrong once (computed on the unfiltered 254-row loader
-    and counting presence where the sentence claims the minimum), so every figure that appears in prose
-    is re-derived here from the 220-drug analysis frame and compared against a literal."""
+    and counting presence where the sentence claims the minimum), so each is re-derived here from the
+    220-drug analysis frame and compared against a literal.
+
+    Scope: the data side only. This re-derives the counts and pins them; it opens no prose file, and for
+    five rounds it said otherwise while nothing in the suite read one. The literals below are the shared
+    half of the contract - `tests/test_prose.py` imports them and asserts that the README and the report
+    outline state these same numbers, so the two tests together cover the claim and neither covers it
+    alone."""
     from collections import Counter
 
     import numpy as np

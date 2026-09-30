@@ -128,12 +128,18 @@ def summary_text(checks, liver_margins, pairs, neural_potency, neural_margins, n
     lines += ["## Cross-checks (published values re-derived from their inputs)", ""]
     lines += [f"- {c['check']}: {c['n_checked']} checked, {c['n_mismatch']} mismatches ({c['tolerance']})" for c in checks]
     hero = pairs[pairs["pair"].str.lower().str.contains(HERO_PAIR[0])]
-    lines += ["", "## Liver-Chip (27 drugs, Ewart et al. 2022)", ""]
+    # Two bases in one section, and the dose is nested under the margin, so the section says which is
+    # which: the margins are the free-basis convention quantity, the dose is total-basis by construction
+    # (`margin.compute` multiplies the clinical dose by margin_total). Without this the indentation
+    # attributes the parent's "(free)" to the one quantity whose direction changes with the basis.
+    lines += ["", "## Liver-Chip (27 drugs, Ewart et al. 2022) - margins on free concentration, "
+                  "dose conversion on total concentration", ""]
     for _, row in liver_margins[liver_margins["key"].isin(HERO_PAIR)].iterrows():
         lines.append(f"- {row['result_line']}")
         if pd.notna(row["equivalent_dose_mg"]):
             lines.append(f"  - {row['compound']}: chip-toxic concentration reached at {row['equivalent_dose_mg']:,.3g} mg/day "
-                         f"(band {row['equivalent_dose_band_low']:,.3g}-{row['equivalent_dose_band_high']:,.3g}) vs "
+                         f"(on total concentration; band {row['equivalent_dose_band_low']:,.3g}-"
+                         f"{row['equivalent_dose_band_high']:,.3g}) vs "
                          f"{row['clinical_dose_mg']:g} mg prescribed (linear PK assumed)")
     if not hero.empty:
         h = hero.iloc[0]

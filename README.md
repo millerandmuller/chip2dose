@@ -16,7 +16,7 @@ The output is a ratio against patient exposure or a daily dose in mg, never a 0-
 ```bash
 git clone https://github.com/millerandmuller/chip2dose && cd chip2dose
 make            # creates .venv (Python 3.11), downloads + verifies data, writes results/
-make test       # 75 tests
+make test       # 95 tests
 ```
 
 A full `make` takes about 2-3 minutes on an idle laptop CPU and up to ~10 minutes on a busy one; the
@@ -215,9 +215,14 @@ class definitions. The matched rows above are the comparison.
   the chip data are missing, but because the published exposure half is. The counts are generated, not asserted: `results/neural_coverage.csv` and
   `neural_coverage.png`. Margins are reported for those 21 only, in two separate panels because the two routes measure
   different things and are never pooled. No published threshold exists for this endpoint, so no verdict is issued.
-- The literature benchmark's lowest POD is the minimum over however many assays were run on a drug; the number of
-  assays alone separates the outcome about as well as potency (AUC 0.66). This favours the potency arm, i.e. works
-  against our headline, and is reported rather than corrected.
+- The literature benchmark's lowest POD is the minimum over however many assays were run on a drug, so a drug tested
+  more often has more chances at a low minimum. Measured as its own arm (exploratory, post-hoc, added 2026-09-30 after
+  the pre-registered results were read; `results/exploratory_wide.csv`), the assay count alone reaches **AUC 0.655
+  [0.566, 0.741]** on the primary endpoint against potency alone's 0.647 — so it separates the outcome about as well as
+  potency does — and **0.723 [0.634, 0.806]** on the stricter endpoint, where it is *better* than potency alone's 0.664.
+  Both intervals overlap the potency arm's. This favours the potency arm, i.e. works against our headline, and is
+  reported rather than corrected: the exposure-aware arms reach 0.887 and 0.952 on the same two endpoints, so the
+  confound does not account for the difference, but it does mean "potency alone" is not a clean measure of potency.
 - Grouping links drugs at Morgan Tanimoto >= 0.4; 47 cross-group pairs sit between 0.3 and 0.4 (e.g. ciprofloxacin /
   levofloxacin, 0.39), so leakage at the level of a drug class is reduced, not excluded.
 - Source issues found and reported, not corrected: telithromycin's low-dose rows in Supplementary Data 1 do not follow

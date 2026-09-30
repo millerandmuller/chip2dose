@@ -143,3 +143,28 @@ def test_range_check_is_labelled_post_hoc_and_never_primary():
     assert (result["n"], result["n_positive"], result["n_negative"]) == (195, 165, 30)
     assert round(comparison["delta_auc"], 3) == 0.162
     assert (round(comparison["ci_low"], 3), round(comparison["ci_high"], 3)) == (0.058, 0.275)
+
+
+def test_the_assay_count_confound_arm_is_defined_as_a_post_hoc_score_on_the_assay_count():
+    """The confound arm is NOT frozen (it postdates the pre-registration commit), and the prose pin in
+    `tests/test_prose.py` compares against `results/validation.json` - an artifact. So the arm's own
+    definition is pinned here, at source, where a flipped sign or a swapped column costs nothing to
+    catch: without this, changing `sign` to -1.0 would move the published AUC from 0.655 to 0.345 and
+    nothing would go red until somebody regenerated and diffed.
+
+    The sign is the claim: +1.0 means "tested in more assays = more concern", which is the direction the
+    confound has to run to favour the potency arm. It also carries its own label, because the arm's name
+    is what gets printed into `summary.md`, both exploratory CSVs and the report."""
+    (arm,) = [a for a in validate.EXPLORATORY_ARMS if "number of assays" in a.name]
+    assert arm.name == "exploratory, post-hoc: number of assays alone"
+    assert (arm.kind, arm.score_column, arm.sign, arm.features, arm.model) == ("score", "n_assays", 1.0, (), "")
+    # The column it scores on counts DISTINCT labels with whitespace stripped and blanks dropped - the
+    # same normalisation the README's composition counts apply to the same column, so the confound arm and
+    # the disclosure are answering one question. A plain len() would count a repeated label twice.
+    assert validate._distinct_assays(["a", "b", "a", " b ", ""]) == 2
+    # Real data only: a non-string entry is not a defined case here, and could not reach this column
+    # without breaking the label-set EQUALITY assertion in test_data_and_labels.py first.
+    counts = validate.benchmark_table()["pod_sources"].map(validate._distinct_assays)
+    assert counts.min() >= 1, "a drug with no named assay would make the confound arm meaningless"
+    # Score arms are not fitted, so the arm cannot leak; asserted rather than assumed from `kind`.
+    assert arm.kind == "score" and not arm.features

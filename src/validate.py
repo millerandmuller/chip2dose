@@ -429,10 +429,18 @@ def evaluate(endpoint: str = "wide") -> dict:
 
 # Added after the first evaluation run (2026-09-28, local time), NOT pre-registered. Question it answers:
 # how much of the exposure-aware advantage comes from exposure alone, without any chip data?
+#
+# The last arm was added later still (2026-09-30), and its name carries its own label because the label
+# has to travel with the number wherever it is printed. Question it answers: the lowest POD is the minimum
+# over however many assays a drug was run in, so a drug tested more often has more chances at a low
+# minimum - does the assay count alone separate the outcome? This is a confound that works AGAINST the
+# headline (it favours the potency arm), and the README and the report outline both stated a value for it
+# with no script behind it, which is why it is computed here rather than asserted in prose.
 EXPLORATORY_ARMS = [
     Arm("exploratory: total Cmax alone", "score", score_column="log_cmax", sign=1.0),
     Arm("exploratory: daily dose alone", "score", score_column="log_dose", sign=1.0),
     Arm("exploratory: free Cmax alone", "score", score_column="log_free_cmax", sign=1.0),
+    Arm("exploratory, post-hoc: number of assays alone", "score", score_column="n_assays", sign=1.0),
 ]
 EXPLORATORY_COMPARISONS = [
     ("margin alone (total)", "exploratory: total Cmax alone"),
@@ -441,11 +449,23 @@ EXPLORATORY_COMPARISONS = [
 ]
 
 
+def _distinct_assays(sources) -> int:
+    """How many distinct assay labels a drug's points of departure carry. Distinct and whitespace-stripped,
+    the same way the disclosure's own label counts are taken, so the confound arm and the composition
+    counts in the README are answering the same question about the same column."""
+    return len({str(s).strip() for s in sources if str(s).strip()})
+
+
 def evaluate_exploratory(endpoint: str = "wide") -> dict:
-    """Exposure-only baselines on the same drugs and bootstrap as the pre-registered analysis."""
+    """Exposure-only baselines on the same drugs and bootstrap as the pre-registered analysis, plus the
+    assay-count confound. Derived columns are assigned here rather than in `benchmark_table`, which is
+    frozen at the pre-registration commit; oriented so that higher = more concern throughout, so the
+    assay count is signed +1 ("tested in more assays = more concern") and an AUC below 0.5 would mean the
+    confound runs the other way."""
     table = benchmark_table()
     frame = load_verified_split(table)
-    table = table.assign(log_free_cmax=table["log_cmax"] + table["log_fu"])
+    table = table.assign(log_free_cmax=table["log_cmax"] + table["log_fu"],
+                         n_assays=table["pod_sources"].map(_distinct_assays))
     if endpoint == "narrow":
         keep = table["y_narrow"] >= 0
         table, frame = table[keep].reset_index(drop=True), frame[keep].reset_index(drop=True)

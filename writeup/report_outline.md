@@ -210,7 +210,9 @@ absence recorded in Section 2.2.
 
 Then leads with the findings that work against us, from `README.md` "Findings we report against ourselves":
 mifepristone and the other cases in `results/failure_cases.csv`; trovafloxacin/levofloxacin as inconclusive;
-pioglitazone's BSEP-driven literature POD ranking it against the clinic; the assay-count confound (AUC 0.66);
+pioglitazone's BSEP-driven literature POD ranking it against the clinic; the assay-count confound, computed as its own
+exploratory post-hoc arm (AUC 0.655 [0.566, 0.741] on the primary endpoint, 0.723 [0.634, 0.806] on the stricter one,
+against potency alone's 0.647 and 0.664 — so on the stricter endpoint the assay count beats potency alone);
 the 47 cross-group pairs between Tanimoto 0.3 and 0.4. Then the standing limitations: no clinical or
 regulatory validity, linear PK, thresholds from one 27-drug study, EPA exposure predictions behind 13 of the
 21 neural comparators, and the practitioner-flagged gaps (free-concentration basis, benchmark-concentration
