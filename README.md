@@ -41,6 +41,7 @@ Other entry points (a few seconds each; every run first checks the input checksu
 |---|---|
 | `results/summary.md` | every headline number, generated |
 | `results/dose_view.png` | the output in real units for troglitazone / pioglitazone: the daily dose at which the chip's toxic concentration is reached, with band, next to the prescribed dose. An illustration of the output; potency alone already ranks this pair correctly, and the comparative evidence is the benchmark |
+| `results/card.png` | the submission card: the same hero-pair numbers as `dose_view.png`, composed for a small card at 560 x 280 |
 | `results/pair_view.png`, `results/pairs/` | potency, patient exposure and margin for each of the 7 matched toxic/non-toxic pairs |
 | `results/liver_margin_table.csv`, `liver_margins.png` | 27 Liver-Chip drugs: total and free margin, band, verdict against the published convention, equivalent daily dose where a dose-matched Cmax exists, assumptions |
 | `results/roc.png`, `paired_difference.png`, `validation_*.csv` | the pre-registered validation on 220 drugs; `roc.png` names the in-sample comparator from Geci et al. (90 % for the same class definition, retrospective, 241 drugs) |

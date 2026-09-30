@@ -62,6 +62,8 @@ def run_liver() -> tuple[pd.DataFrame, pd.DataFrame]:
     write_csv(pairs, "pair_table.csv")
     figures.pair_view(margins, *HERO_PAIR, config.RESULTS / "pair_view.png")
     figures.dose_view(margins, pairs, *HERO_PAIR, config.RESULTS / "dose_view.png")
+    # The submission card, from the same numbers as the dose view so it cannot drift from them.
+    figures.card_image(margins, *HERO_PAIR, config.RESULTS / "card.png")
     matched = {tuple(sorted(p)) for p in zip(margins["key"], margins["partner_key"]) if p[1]}
     for a, b in sorted(matched):
         figures.pair_view(margins, a, b, config.RESULTS / "pairs" / f"pair_{a}_{b}.png")
@@ -82,6 +84,9 @@ def run_neural() -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
 
 def run_validation() -> dict:
     out = {}
+    # Computed before the figures because paired_difference.png carries the post-hoc row. Each
+    # evaluation seeds its own generator from config, so moving this call cannot move a number.
+    range_matched = validate.evaluate_range_matched()
     for endpoint in ("wide", "narrow"):
         result = validate.evaluate(endpoint)
         exploratory = validate.evaluate_exploratory(endpoint)
@@ -90,11 +95,11 @@ def run_validation() -> dict:
         write_csv(pd.DataFrame(exploratory["arms"] + exploratory["comparisons"]), f"exploratory_{endpoint}.csv")
         if endpoint == "wide":
             figures.roc_figure(result, exploratory, config.RESULTS / "roc.png")
-            figures.paired_difference_figure(result, exploratory, config.RESULTS / "paired_difference.png")
+            figures.paired_difference_figure(result, exploratory, config.RESULTS / "paired_difference.png",
+                                             range_matched=range_matched)
             write_csv(validate.coefficients(result["_table"], result["_y"]), "model_coefficients.csv")
             write_csv(validate.failure_cases(result), "failure_cases.csv")
         out[endpoint] = {"preregistered": public(result), "exploratory": public(exploratory)}
-    range_matched = validate.evaluate_range_matched()
     write_csv(pd.DataFrame(range_matched["arms"] + range_matched["comparisons"]), "exploratory_range_matched.csv")
     out["wide"]["exploratory_range_matched"] = range_matched
     output.atomic_write_text(config.RESULTS / "validation.json", json.dumps(out, indent=2, default=float) + "\n")

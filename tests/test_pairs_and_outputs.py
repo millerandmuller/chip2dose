@@ -238,6 +238,33 @@ def test_every_result_writer_goes_through_the_atomic_helper(tmp_path, monkeypatc
     assert seen == ["probe.csv", "probe.md", "probe.png"]
 
 
+def _png_size(path):
+    """Width and height out of the IHDR chunk, so the check needs no image library."""
+    header = path.read_bytes()[:24]
+    assert header[:8] == b"\x89PNG\r\n\x1a\n", f"{path} is not a PNG"
+    return int.from_bytes(header[16:20], "big"), int.from_bytes(header[20:24], "big")
+
+
+def test_the_run_writes_the_submission_card_at_the_size_the_editor_requires(tmp_path, monkeypatch):
+    """The card blocks Submit, so the run has to produce it, and at 560x280: the Kaggle Writeup editor
+    states those dimensions (read off the editor 2026-09-29). The literal is the point of the test -
+    a tight bounding box or a changed figsize would still write a valid PNG of the wrong size."""
+    import run_demo
+    monkeypatch.setattr(config, "RESULTS", tmp_path)
+    run_demo.run_liver()
+    card = tmp_path / "card.png"
+    assert card.exists(), sorted(p.name for p in tmp_path.iterdir())
+    assert _png_size(card) == (560, 280)
+
+
+def test_the_card_refuses_a_pair_with_no_equivalent_daily_dose(tmp_path):
+    """Same guard as the dose view: the card shows a dose or it is not drawn. It must never fall back
+    to a compound whose equivalent dose does not exist."""
+    import pytest
+    with pytest.raises(ValueError):
+        figures.card_image(liver.margin_table(), "ambrisentan", "sitaxsentan", tmp_path / "x.png")
+
+
 def test_roc_legend_labels_stay_short_enough_to_sit_inside_the_axes():
     """The ROC legend sits in the empty lower-right corner so the curve keeps the frame. A longer
     label grows that box into the curves. 28 characters is the longest label measured clear of every

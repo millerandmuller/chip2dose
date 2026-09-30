@@ -22,6 +22,9 @@ VERMILLION, BLUE, GREEN, ORANGE, SKY, GREY, BLACK = (
     "#D55E00", "#0072B2", "#009E73", "#E69F00", "#56B4E9", "#7F7F7F", "#000000",
 )
 VIDEO = dict(figsize=(16, 9), dpi=120)
+# The Kaggle Writeup editor asks for 560 x 280 ("Dimensions for the image (560 x 280)", read off the
+# editor 2026-09-29, m0_findings.md 6b). Produced at exactly that size so no crop step can move it.
+CARD = dict(figsize=(5.6, 2.8), dpi=100)
 
 plt.rcParams.update({
     "font.size": 16, "axes.titlesize": 19, "axes.labelsize": 16, "xtick.labelsize": 14,
@@ -30,9 +33,12 @@ plt.rcParams.update({
 })
 
 
-def _save(fig: plt.Figure, path: Path) -> Path:
+def _save(fig: plt.Figure, path: Path, **savefig: object) -> Path:
     # The temporary name carries no image extension, so the format is stated rather than inferred.
-    output.atomic_write(path, lambda tmp: fig.savefig(tmp, format=path.suffix.lstrip(".")))
+    # `savefig` overrides the rcParams for one figure; the card passes the full canvas as bbox_inches
+    # because the "tight" default would crop it away from the exact size the editor asks for.
+    # (bbox_inches=None does NOT disable it - matplotlib reads savefig.bbox from rcParams instead.)
+    output.atomic_write(path, lambda tmp: fig.savefig(tmp, format=path.suffix.lstrip("."), **savefig))
     plt.close(fig)
     return path
 
@@ -193,6 +199,55 @@ def dose_view(margins: pd.DataFrame, pairs: pd.DataFrame, key_a: str, key_b: str
     return _save(fig, path)
 
 
+def card_image(margins: pd.DataFrame, key_a: str, key_b: str, path: Path,
+               aspect: dict | None = None) -> Path:
+    """The submission card: the same hero-pair numbers as `dose_view`, composed for a small card.
+
+    Not a shrunk figure. It is read at roughly 300 px wide in a gallery grid, so everything that only
+    works at full size is gone - no axis, no ticks, no grid, no footnote - and what remains is the two
+    compounds, the chip-derived daily dose with its band, and the dose patients took. `aspect` defaults
+    to `CARD` (560 x 280, the size the Kaggle editor asks for); pass another dict to retarget it."""
+    by_key = margins.set_index("key")
+    rows = sorted([by_key.loc[key_a], by_key.loc[key_b]], key=lambda r: r["garside_rank"])
+    for row in rows:
+        if not np.isfinite(row["equivalent_dose_mg"]):
+            raise ValueError(f"{row['compound']}: no dose-matched Cmax, no equivalent daily dose to show")
+
+    fig, ax = plt.subplots(**(aspect or CARD))
+    fig.subplots_adjust(left=0.26, right=0.98, top=0.70, bottom=0.08)
+    values = []
+    for row, colour, y in zip(rows, [VERMILLION, BLUE], [1, 0]):
+        lo, hi = row["equivalent_dose_band_low"], row["equivalent_dose_band_high"]
+        dose, prescribed = row["equivalent_dose_mg"], row["clinical_dose_mg"]
+        values += [lo, hi, prescribed]
+        ax.plot([lo, hi], [y, y], color=colour, lw=9, alpha=0.3, solid_capstyle="butt")
+        ax.plot(dose, y, "o", color=colour, ms=9)
+        ax.annotate(f"chip: {_fmt(dose)} mg/day ({_fmt(lo)}-{_fmt(hi)})", (dose, y), textcoords="offset points",
+                    xytext=(0, 11), ha="center", fontsize=11, color=colour)
+        ax.plot(prescribed, y, "D", color=BLACK, ms=8)
+        ax.annotate(f"patients: {_fmt(prescribed)}", (prescribed, y), textcoords="offset points",
+                    xytext=(0, -20), ha="center", fontsize=11)
+
+    ax.set_yticks([1, 0])
+    ax.set_yticklabels([r["compound"] for r in rows], fontsize=12)
+    for tick, colour in zip(ax.get_yticklabels(), [VERMILLION, BLUE]):
+        tick.set_color(colour)
+    ax.tick_params(axis="y", length=0)
+    _log_axis(ax, values, pad=5.0)
+    ax.set_ylim(-0.75, 1.75)
+    # Everything a full-size figure can afford and a 300 px card cannot. A log scale keeps drawing
+    # minor ticks after set_xticks([]), so the locator is cleared too, not just the labels.
+    ax.set_xticks([])
+    ax.xaxis.set_minor_locator(matplotlib.ticker.NullLocator())
+    ax.tick_params(axis="x", which="both", length=0)
+    for side in ("left", "bottom"):
+        ax.spines[side].set_visible(False)
+    # Two lines, not one: at this width a single line of the sentence runs off the canvas.
+    fig.text(0.02, 0.93, "An organ-chip gives a concentration.", fontsize=12.5, weight="bold", va="top")
+    fig.text(0.02, 0.80, "A patient gets a dose.", fontsize=12.5, weight="bold", va="top")
+    return _save(fig, path, bbox_inches=fig.bbox_inches)
+
+
 def liver_overview(margins: pd.DataFrame, path: Path) -> Path:
     """All 27 Liver-Chip drugs: free margin with band against the convention threshold."""
     m = margins.sort_values("margin_free").reset_index(drop=True)
@@ -265,30 +320,48 @@ def roc_figure(result: dict, exploratory: dict, path: Path) -> Path:
     return _save(fig, path)
 
 
-def paired_difference_figure(result: dict, exploratory: dict, path: Path) -> Path:
-    """Forest plot: pre-registered paired AUC differences, then the exploratory ones, separated."""
+def paired_difference_figure(result: dict, exploratory: dict, path: Path,
+                             range_matched: dict | None = None) -> Path:
+    """Forest plot: pre-registered paired AUC differences, then the exploratory ones, separated.
+
+    `range_matched` appends the post-hoc range check below a second divider. It is the only row on this
+    figure with a different denominator, so its label states both n values rather than relying on the
+    reader to notice, and its marker is an open square instead of a filled circle for the same reason."""
     rows = [(c["comparison"], c["delta_auc"], c["ci_low"], c["ci_high"], "pre-registered", c["primary"])
             for c in result["comparisons"]]
     rows += [(c["comparison"], c["delta_auc"], c["ci_low"], c["ci_high"], "exploratory", False)
              for c in exploratory["comparisons"]]
+    if range_matched is not None:
+        c = range_matched["comparisons"][0]
+        label = (f"post-hoc: same primary pair refit on\n  the range-matched subset "
+                 f"(n = {range_matched['n']}, not {result['n']})")
+        rows.append((label, c["delta_auc"], c["ci_low"], c["ci_high"], "post-hoc", False))
     fig, ax = plt.subplots(**VIDEO)
     n = len(rows)
     for i, (name, d, lo, hi, kind, primary) in enumerate(rows):
         y = n - 1 - i
         colour = VERMILLION if primary else (BLUE if kind == "pre-registered" else GREY)
-        ax.plot([lo, hi], [y, y], color=colour, lw=5, alpha=0.6)
-        ax.plot(d, y, "o", color=colour, ms=14 if primary else 10)
+        post_hoc = kind == "post-hoc"
+        ax.plot([lo, hi], [y, y], color=colour, lw=5, alpha=0.6, ls=":" if post_hoc else "-")
+        ax.plot(d, y, "s" if post_hoc else "o", color=colour, ms=11 if post_hoc else (14 if primary else 10),
+                markerfacecolor="none" if post_hoc else colour, markeredgewidth=2.5 if post_hoc else 1.0)
         ax.annotate(f"{d:+.3f} [{lo:+.3f}, {hi:+.3f}]", (hi, y), textcoords="offset points", xytext=(10, -5),
                     fontsize=13, color=colour)
     ax.axvline(0, color=BLACK, lw=1.5)
     n_pre = len(result["comparisons"])
     ax.axhline(n - n_pre - 0.5, color=GREY, lw=1, ls=":")
+    if range_matched is not None:
+        # Dashed where the first divider is dotted: the two separate different things and must not
+        # read as one kind of break. The post-hoc row is appended last, so it sits at y = 0.
+        ax.axhline(0.5, color=GREY, lw=1.5, ls="--")
     ax.set_yticks(range(n))
     ax.set_yticklabels([r[0].replace(" minus ", "\n  minus ") for r in rows][::-1], fontsize=11)
     # Secondary rows compare parameter-free score arms, so "held-out folds" would not be true of every row;
     # what every row does share is that both arms are scored on the same drugs in the same bootstrap draw.
     ax.set_xlabel("Paired difference in ROC AUC, both arms scored on the same drugs (95% CI, group bootstrap)")
-    ax.set_title("Primary comparison (red) and secondary comparisons were pre-registered;\n"
+    # "(top row)", not a colour name: the bar is vermilion and reads orange at 1080p, and a position
+    # survives a palette change that a colour word does not.
+    ax.set_title("Primary comparison (top row) and secondary comparisons were pre-registered;\n"
                  "grey rows were added after the first evaluation and are exploratory", fontsize=16)
     ax.set_xlim(min(-0.05, min(r[2] for r in rows) - 0.02), max(r[3] for r in rows) + 0.25)
     return _save(fig, path)
