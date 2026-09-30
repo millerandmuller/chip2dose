@@ -40,10 +40,10 @@ Other entry points (a few seconds each; every run first checks the input checksu
 | File | Content |
 |---|---|
 | `results/summary.md` | every headline number, generated |
-| `results/dose_view.png` | the output in real units for troglitazone / pioglitazone: the daily dose at which the chip's toxic concentration is reached, with band, next to the prescribed dose. An illustration of the output; potency alone already ranks this pair correctly, and the comparative evidence is the benchmark |
-| `results/card.png` | the submission card: the same hero-pair numbers as `dose_view.png`, composed for a small card at 560 x 280 |
+| `results/dose_view.png` | the output in real units for troglitazone / pioglitazone, **on total concentration**: the daily dose at which the chip's toxic concentration is reached, with band, next to the prescribed dose. An illustration of the output; potency alone already ranks this pair correctly, and the comparative evidence is the benchmark |
+| `results/card.png` | the submission card: the hero pair's safety margins **on free concentration** (1.42x against 94.1x, 66-fold apart) against the published convention line - a different quantity on a different basis from `dose_view.png`, because the margin ordering is the same on both bases and the dose comparison is not. Composed for a small card at 560 x 280 |
 | `results/pair_view.png`, `results/pairs/` | potency, patient exposure and margin for each of the 7 matched toxic/non-toxic pairs |
-| `results/liver_margin_table.csv`, `liver_margins.png` | 27 Liver-Chip drugs: total and free margin, band, verdict against the published convention, equivalent daily dose where a dose-matched Cmax exists, assumptions |
+| `results/liver_margin_table.csv`, `liver_margins.png` | 27 Liver-Chip drugs: total and free margin, band, verdict against the published convention, equivalent daily dose (on total concentration) where a dose-matched Cmax exists, assumptions |
 | `results/roc.png`, `paired_difference.png`, `validation_*.csv` | the pre-registered validation on 220 drugs; `roc.png` names the in-sample comparator from Geci et al. (90 % for the same class definition, retrospective, 241 drugs) |
 | `results/failure_cases.csv` | drugs the model gets wrong, in real units (cut chosen in-sample: an illustration, not a performance estimate) |
 | `results/neural_margin_table.csv`, `neural_margins.png` | the neural application |
@@ -64,8 +64,11 @@ Other entry points (a few seconds each; every run first checks the input checksu
    the 5th-95th percentile of 20,000 Monte-Carlo draws.
 4. **Equivalent daily dose.** Where a clinical dose and the Cmax measured at that dose come from the same source, the
    margin is turned into the daily dose at which Cmax would reach the chip's toxic concentration, assuming linear
-   pharmacokinetics. Troglitazone: about 16 mg/day (band 16-62) against 600 mg prescribed, above the whole band;
-   pioglitazone: about 90 mg/day (band 40-291) against 45 mg, below the point estimate but inside the band.
+   pharmacokinetics. The conversion is **on total concentration** by construction (the clinical dose is multiplied by
+   the total-basis margin), so every dose below carries that basis. Troglitazone: about 16 mg/day (band 16-62) against
+   600 mg prescribed, above the whole band; pioglitazone: about 90 mg/day (band 40-291) against 45 mg, below the point
+   estimate but inside the band. On the free basis each of those prescribed doses changes which side of its band it
+   falls on, which is why the pair's headline comparison is the margin and not the dose.
 5. **Verdict.** Against a *convention* with its error rates printed next to it: free margin 375 (Liver-Chip, sensitivity
    87 %, specificity 100 %) or total margin 50 (sensitivity 80 %, specificity 100 %). A band that straddles the threshold
    is reported as such. A POD where no toxicity was seen is a lower bound and is never treated as a number. Unusable
@@ -114,9 +117,12 @@ is applied (27 Liver-Chip drugs, 136 neural chemicals) - and `results/neural_cov
 115 of the 136 chemicals this chip has measured, no public human exposure value exists to set the chip number against.
 
 **What this does and does not show.** An exploratory analysis added after the first run (labelled as such everywhere)
-shows that **exposure alone, without any in-vitro potency, reaches AUC 0.85** (total Cmax). The potency-exposure margin adds a
-small increment over exposure alone: +0.04 [+0.00, +0.09] (total) and +0.08 [+0.03, +0.13] (free); on the narrower
-endpoint the total-margin increment's CI includes zero. That in-vitro potency means little until it is set against
+shows that **exposure alone, without any in-vitro potency, already reaches AUC 0.845** (total Cmax). Each concentration
+basis is its own baseline, and the margin's increment is small over both: total Cmax alone reaches 0.845 and the margin
+on total concentrations reaches 0.889, an increment of +0.044 [+0.003, +0.090]; free Cmax alone reaches 0.745 and the
+margin on free concentrations reaches 0.824, an increment of +0.078 [+0.026, +0.132]. The larger increment is the one
+over the weaker baseline - the free margin arm at 0.824 sits *below* the 0.845 that total Cmax alone reaches, not above
+it. On the narrower endpoint the total-margin increment's CI includes zero: +0.035 [-0.006, +0.083]. That in-vitro potency means little until it is set against
 exposure is the benchmark authors' own published finding, not ours: they report that in-vitro toxicity values "showed
 little ability for distinguishing DILI concern classes on their own", and ROC AUC up to 96 % for the ratio of clinical
 Cmax to lowest in-vitro toxicity, in a retrospective analysis of all 241 drugs (Geci et al. 2026,

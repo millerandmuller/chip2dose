@@ -218,7 +218,8 @@ def run_readout(args: argparse.Namespace) -> int:
         lo, hi = result.equivalent_dose_band
         bound = ">" if args.censored else ""
         note = " (lower bound: no toxicity was seen up to the readout)" if args.censored else ""
-        print(f"Chip-derived daily dose: {bound}{margin.fmt_dose(result.equivalent_dose_mg)} mg "
+        print(f"Chip-derived daily dose (on total concentration): "
+              f"{bound}{margin.fmt_dose(result.equivalent_dose_mg)} mg "
               f"(band {bound}{margin.fmt_dose(lo)} to {bound}{margin.fmt_dose(hi)} mg) "
               f"against {margin.fmt_dose(args.dose_mg)} mg, linear PK assumed{note}.")
     for note in result.assumptions:

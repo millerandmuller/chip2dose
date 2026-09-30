@@ -89,7 +89,7 @@ def _chip_lines(key: str) -> tuple[list[str], dict]:
         relation = margin.dose_relation(dose["equivalent_dose_mg"], dose["equivalent_dose_band_low"],
                                         dose["equivalent_dose_band_high"], dose["clinical_dose_mg"])
         lines.append(
-            f"  Chip-derived daily dose: the chip's toxic concentration is reached at "
+            f"  Chip-derived daily dose (on total concentration): the chip's toxic concentration is reached at "
             f"{margin.fmt_dose(dose['equivalent_dose_mg'])} mg/day (band {margin.fmt_dose(dose['equivalent_dose_band_low'])}-"
             f"{margin.fmt_dose(dose['equivalent_dose_band_high'])}) against {margin.fmt_dose(dose['clinical_dose_mg'])} mg "
             f"prescribed: {relation}. ({dose['dose_source']})"
@@ -148,7 +148,8 @@ def _literature_lines(key: str, chip: dict | None = None) -> list[str]:
         lines.append("  Given intravenously only: no oral equivalent daily dose and no oral dose rule of thumb.")
     else:
         lines.append(
-            f"  Assay-derived daily dose (Cmax would reach this POD): {margin.fmt_dose(equivalent)} mg, band "
+            f"  Assay-derived daily dose (Cmax would reach this POD, on total concentration): "
+            f"{margin.fmt_dose(equivalent)} mg, band "
             f"{margin.fmt_dose(band_low)}-{margin.fmt_dose(band_high)} mg, "
             f"against {margin.fmt_dose(row['dose_mg'])} mg prescribed: "
             f"{margin.dose_relation(equivalent, band_low, band_high, row['dose_mg'], label='assay-derived dose')} "

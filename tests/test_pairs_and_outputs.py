@@ -115,7 +115,7 @@ def test_empty_or_combined_cli_modes_are_refused(capsys):
 def test_censored_readout_dose_is_a_lower_bound(capsys):
     import run_demo
     run_demo.main(["--readout", "12", "--cmax", "0.8", "--dose-mg", "100", "--censored"])
-    assert "Chip-derived daily dose: >" in capsys.readouterr().out
+    assert "Chip-derived daily dose (on total concentration): >" in capsys.readouterr().out
 
 
 def test_two_cmax_values_for_one_drug_are_named_with_their_sources():
@@ -272,6 +272,17 @@ def test_the_card_refuses_a_pair_whose_margin_is_only_a_lower_bound(tmp_path):
 HERO_MARGINS_FREE = {"troglitazone": 1.42309, "pioglitazone": 94.0772}
 HERO_MARGIN_FOLD_FREE = 66
 HERO_CONVENTION_THRESHOLD = 375.0
+# The regulatory fate every figure must state for this pair, as a literal. The two surfaces that draw it
+# share one helper, so they can no longer disagree with each other - which is exactly why the helper's
+# output needs pinning here: they can now be wrong together.
+WITHDRAWAL_ON_SCREEN = {"Troglitazone": "withdrawn", "Pioglitazone": "not withdrawn"}
+# The basis clause each dose-bearing surface of dose_view.png must carry, surface by surface. Deleting any
+# one of these from the figure leaves the other three intact, so each needs its own assertion.
+DOSE_VIEW_BASIS = {
+    "titles": "on total concentration",
+    "xlabels": "conversion on total plasma concentration",
+}
+DOSE_VIEW_FOOTNOTE_BASIS = ("TOTAL Cmax", "The basis matters", "basis-dependent")
 
 
 def test_the_hero_pairs_free_margins_and_the_fold_the_demo_speaks_are_pinned():
@@ -297,34 +308,98 @@ def test_the_hero_pairs_free_margins_and_the_fold_the_demo_speaks_are_pinned():
     assert tro["margin_total"] < pio["margin_total"]
 
 
-def _rendered_card_text(tmp_path, monkeypatch):
-    """Every string the card actually draws. The figure is held open instead of being read back off
-    the PNG, so the check is on the rendered artists rather than on the source that composed them."""
+def _rendered_figure_parts(monkeypatch, render) -> dict[str, list[str]]:
+    """Every string a figure actually draws, keyed by the surface that draws it. The figure is held open
+    (`_save` closes it, so the close is what we intercept) instead of being read back off the PNG, so the
+    check is on the rendered artists rather than on the source that composed them.
+
+    Keyed rather than flattened, and shared rather than card-specific, for one reason each: an assertion
+    that names its own surface can only be turned green by that surface, and the edit that named the
+    concentration basis changed two figures - a rendered-text guard pointed at one of them is aimed at the
+    review instead of at the code."""
     import matplotlib.pyplot as plt
-    held = []
+    real_close, held = plt.close, []
     monkeypatch.setattr(plt, "close", held.append)
-    figures.card_image(liver.margin_table(), "troglitazone", "pioglitazone", tmp_path / "card.png")
+    render()
     fig = held[-1]
-    drawn = [t.get_text() for t in fig.texts]
-    for ax in fig.axes:
-        drawn += [t.get_text() for t in ax.texts] + [t.get_text() for t in ax.get_yticklabels()]
-    plt.close(fig)
+    parts = {
+        "figure_texts": [t.get_text() for t in fig.texts],
+        "titles": [ax.get_title() for ax in fig.axes],
+        "xlabels": [ax.get_xlabel() for ax in fig.axes],
+        "ylabels": [ax.get_ylabel() for ax in fig.axes],
+        "axes_texts": [t.get_text() for ax in fig.axes for t in ax.texts],
+        "yticklabels": [t.get_text() for ax in fig.axes for t in ax.get_yticklabels()],
+    }
+    real_close(fig)
+    return parts
+
+
+def _flatten(parts: dict[str, list[str]]) -> str:
+    return " | ".join(s for surface in parts.values() for s in surface)
+
+
+def _drawn_withdrawal_status(parts: dict[str, list[str]]) -> dict[str, str]:
+    """The regulatory fate each y-tick label actually states, per compound. Returned as an exact string
+    so a caller can compare by equality: `"withdrawn" in label` is satisfied by `"not withdrawn"`, which
+    is the one mutation a guard on this claim exists to catch."""
+    drawn = {}
+    for label in parts["yticklabels"]:
+        compound, _, rest = label.partition("\n")
+        drawn[compound] = rest.split(";")[0].strip()
     return drawn
+
+
+def _rendered_card_parts(tmp_path, monkeypatch):
+    return _rendered_figure_parts(
+        monkeypatch,
+        lambda: figures.card_image(liver.margin_table(), "troglitazone", "pioglitazone", tmp_path / "card.png"))
+
+
+def _rendered_dose_view_parts(tmp_path, monkeypatch):
+    margins = liver.margin_table()
+    return _rendered_figure_parts(
+        monkeypatch,
+        lambda: figures.dose_view(margins, liver.pair_table(margins),
+                                  "troglitazone", "pioglitazone", tmp_path / "dose_view.png"))
 
 
 def test_the_card_states_the_basis_and_shows_the_free_margins(tmp_path, monkeypatch):
     """P2-1: the card is the only surface with no footnote, and the quantity that used to be on it -
     the equivalent daily dose - changes direction on the other basis. So the card carries the margin,
     and says which basis, on its face. Rendered text, because that is what a reviewer reads."""
-    drawn = " | ".join(_rendered_card_text(tmp_path, monkeypatch))
+    parts = _rendered_card_parts(tmp_path, monkeypatch)
+    drawn = _flatten(parts)
     assert "free concentration" in drawn, drawn
     assert f"{HERO_MARGIN_FOLD_FREE}-fold" in drawn, drawn
     assert f"convention {HERO_CONVENTION_THRESHOLD:g}" in drawn, drawn
     # The plotted values are the free margins (1.42x / 94.1x), not the total ones (0.03x / 2.8x).
     assert "margin 1.42x" in drawn and "margin 94.1x" in drawn, drawn
-    assert "withdrawn" in drawn, drawn
+    # By equality, not containment: "withdrawn" in label is also satisfied by "not withdrawn", so the
+    # containment form stayed green when the producer was inverted - and this is the factual claim the
+    # Oh! moment turns on, spoken aloud in the video and drawn on the first artifact a reviewer sees.
+    assert _drawn_withdrawal_status(parts) == WITHDRAWAL_ON_SCREEN, parts["yticklabels"]
     # And the basis-dependent quantity is gone from this surface rather than merely relabelled.
     assert "mg/day" not in drawn, drawn
+
+
+def test_dose_view_names_its_concentration_basis_on_every_surface(tmp_path, monkeypatch):
+    """P3-7: `dose_view.png` shows a dose, and the dose conversion is on TOTAL concentration by
+    construction (`margin.compute` multiplies the clinical dose by `margin_total` whatever the threshold's
+    basis is). On the free basis each prescribed dose changes which side of its band it falls on, so an
+    unlabelled dose here is a different claim from the one the figure makes.
+
+    The sibling card got this guard in the round that added the labels; this figure got the labels and no
+    guard, and four separate deletions - title, axis, footnote formula, footnote passage - each left the
+    whole suite green. One assertion per surface, because a single flattened check would stay green while
+    three of the four are missing."""
+    parts = _rendered_dose_view_parts(tmp_path, monkeypatch)
+    for surface, clause in DOSE_VIEW_BASIS.items():
+        assert any(clause in s for s in parts[surface]), (surface, parts[surface])
+    footnote = " | ".join(parts["figure_texts"])
+    for clause in DOSE_VIEW_FOOTNOTE_BASIS:
+        assert clause in footnote, (clause, footnote)
+    # The same regulatory claim as the card, drawn from the same shared helper, pinned on both surfaces.
+    assert _drawn_withdrawal_status(parts) == WITHDRAWAL_ON_SCREEN, parts["yticklabels"]
 
 
 def test_roc_legend_labels_stay_short_enough_to_sit_inside_the_axes():
