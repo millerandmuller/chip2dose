@@ -4,8 +4,10 @@
 
 Chip2Dose turns an organ-on-a-chip readout (the lowest concentration at which the chip shows toxicity) into a
 **margin against the drug's real human exposure, with an uncertainty band**, and tests on published clinical
-outcomes whether that exposure-aware view predicts drug-induced liver injury (DILI) better than chip potency alone.
-The same method is applied to neural network-formation data from microelectrode arrays.
+outcomes whether that exposure-aware view predicts drug-induced liver injury (DILI) better than potency alone. That
+test runs on 220 drugs whose potency comes from published in-vitro assays, not from a chip (see "What the lowest POD is
+measured in"); the chip is where the method is applied. The same method is applied to neural network-formation data
+from microelectrode arrays.
 
 The output is a ratio against patient exposure or a daily dose in mg, never a 0-1 toxicity score.
 
@@ -96,8 +98,17 @@ complete check is therefore a comparison against commit `a76e7e9` in the git his
 | **learned, exposure-aware features** | **0.89 [0.83, 0.94]** |
 | **paired difference (primary)** | **+0.24 [+0.15, +0.34]** |
 
+**What the lowest POD is measured in.** Geci et al.'s `lowestPOD` is the lowest in-vitro value across 17 published
+hepatotoxicity datasets, 23 assay readouts in all: for 70 of the 220 drugs the lowest POD is a BSEP inhibition IC50, and
+the rest come from THLE and HepG2 cytotoxicity in cell-line monolayers (117 and 113 drugs carry one), Cell Painting (79),
+ToxCast HepG2 imaging and mitochondrial assays - none of the 23 readouts is an organ-chip measurement. A clinical DILI
+outcome for 220 drugs exists only for drugs that reached patients, and those drugs were characterised in these
+conventional assays, so the benchmark is where the thesis can be tested at this scale while the chip is where the method
+is applied (27 Liver-Chip drugs, 136 neural chemicals) - and `results/neural_coverage.csv` counts what that costs: for
+115 of the 136 chemicals this chip has measured, no public human exposure value exists to set the chip number against.
+
 **What this does and does not show.** An exploratory analysis added after the first run (labelled as such everywhere)
-shows that **exposure alone, without any chip data, reaches AUC 0.85** (total Cmax). The potency-exposure margin adds a
+shows that **exposure alone, without any in-vitro potency, reaches AUC 0.85** (total Cmax). The potency-exposure margin adds a
 small increment over exposure alone: +0.04 [+0.00, +0.09] (total) and +0.08 [+0.03, +0.13] (free); on the narrower
 endpoint the total-margin increment's CI includes zero. That in-vitro potency means little until it is set against
 exposure is the benchmark authors' own published finding, not ours: they report that in-vitro toxicity values "showed
@@ -156,6 +167,18 @@ class definitions. The matched rows above are the comparison.
 
 ## Findings we report against ourselves
 
+- **What the chip adds over exposure alone, in one place.** On the primary endpoint total Cmax alone reaches AUC 0.845,
+  and the margin's increment over it is small: +0.044 [+0.003, +0.090] on total concentrations, +0.078 [+0.026, +0.132]
+  on free; on the narrower endpoint the total increment's interval includes zero (+0.035 [-0.006, +0.083]). That is the
+  size of the effect on this benchmark and we do not claim it settles the question. What it does not measure is the
+  setting the tool is built for: a drug can be in this benchmark only if it reached patients, and a drug that reached
+  patients has a measured clinical Cmax by construction - so "exposure alone" is available for all 220 of these drugs and
+  for none of the compounds a chip lab tests before any human dose exists. That asymmetry is measured rather than
+  argued. Of the 136 chemicals on the neural chip, 21 have any public human exposure value and 13 of those only a
+  predicted one; for 61 of the 82 active chemicals - 115 of all 136 - no margin is computed at all, because the missing
+  half is the exposure and not the chip (`results/neural_coverage.csv`). The benchmark is therefore the right place to
+  test whether exposure-aware features beat potency alone, and the wrong place to estimate what a chip contributes where
+  it is actually used; that estimate needs a dataset that does not yet exist publicly.
 - **The hero pair is not "identical potency".** Troglitazone (withdrawn) and pioglitazone (still prescribed) are a
   published matched pair, and the free margin orders them like the clinic (1.4x vs 94x). But their chip potencies
   already differ 46-fold, and both fall below the convention threshold. No matched pair in the Liver-Chip set shows

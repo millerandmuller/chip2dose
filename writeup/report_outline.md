@@ -99,6 +99,28 @@ where the result is first presented (Section 7.2): the ordering of the arms, and
 advantage over potency alone (+0.243 [+0.152, +0.340] on the primary endpoint), are a confirmation of
 Geci et al.'s observation rather than a discovery.
 
+### 2.2 What the benchmark's point of departure is made of
+
+Every AUC in this report is computed on Geci et al.'s `lowestPOD` column, so the report states what that column
+contains before it states any result. It is the lowest in-vitro value across the seventeen published hepatotoxicity
+datasets the authors integrated, and across the 220 drugs analysed here those values carry 23 distinct assay labels.
+Counted from the shipped `pod_sources` column rather than from the documentation: a BSEP inhibition IC50 is the lowest
+point of departure for 70 of the 220 drugs; THLE and HepG2 cytotoxicity in cell-line monolayers appear among the
+points of departure of 117 and 113 drugs; Cell Painting cytotoxicity of 79; and the remainder are per-publication
+lowest-POD aggregates together with ToxCast HepG2 high-content imaging, mitochondrial inhibition and uncoupling
+readouts, and a second transporter assay (MRP2). **None of the 23 labels is an organ-chip measurement, and the most
+frequent single label is a transporter-inhibition assay.**
+
+This is a property of where clinical ground truth exists, not an oversight in the benchmark. A DILIrank outcome is
+available for a drug because that drug reached patients, and a drug that reached patients was characterised in the
+conventional assays available at the time; no public dataset pairs organ-chip measurements for 220 drugs with clinical
+liver outcomes. The consequence is stated here and again in Section 8: the benchmark is where the thesis is tested and
+the chip is where the method is applied (27 Liver-Chip drugs in Section 7.1, 136 neural chemicals in Section 7.4), so
+**the step from "exposure-aware features separate clinical outcomes better than potency-only features on published
+in-vitro PODs" to "the same holds for a chip-derived POD" is an assumption this report states, not a result it
+presents.** How far apart the two worlds sit is itself measured in Section 7.4: for 115 of the 136 chemicals the neural
+chip has measured, no public human exposure value exists to set a chip concentration against.
+
 ---
 
 ## 3. Data *(outline)*
@@ -120,7 +142,9 @@ limits. Sources: `src/pod.py`, `src/margin.py`, `src/config.py`.
 Why the AI method is a small, auditable classifier and not an image model: the question is whether adding
 exposure features to potency features changes the separation of clinical outcomes, which needs a model whose
 coefficients can be read (`results/model_coefficients.csv`). Logistic regression and gradient boosting, the
-two feature sets, and the rule that classifier probabilities never leave the validation figures.
+two feature sets, and the rule that classifier probabilities never leave the validation figures. Names what the
+potency feature is measured in, pointing at Section 2.2: the published in-vitro PODs of 23 assay readouts, none of
+them an organ chip, so "potency" in every arm of this report means published laboratory potency.
 
 ## 6. Experiments *(outline)*
 
@@ -164,6 +188,21 @@ benchmark source is written as a bound (`censored_pod_entries() == 0`), because 
 with a reported potency value, so restricting to uncensored PODs keeps all 220 drugs. That is a fact about how
 the benchmark was built. It means drugs that were inactive at every tested concentration are absent by
 construction, and potency's weakness here is partly a property of the benchmark and not only of potency.
+
+**Second: what the chip adds over exposure alone, assembled in one place** (the question the Oct 20–30 defense will
+ask, and the one a problem owner asks first). On the primary endpoint total Cmax alone reaches AUC 0.845, and the
+margin's increment over it is small: +0.044 [+0.003, +0.090] on total concentrations, +0.078 [+0.026, +0.132] on free;
+on the narrower endpoint the total increment's interval includes zero (+0.035 [−0.006, +0.083]). That is the size of the
+effect on this benchmark, and the report does not claim it settles the question. What it does not measure is the setting
+the tool is built for. A drug can be in this benchmark only if it reached patients, and a drug that reached patients has
+a measured clinical Cmax by construction — so "exposure alone" is available for all 220 of these drugs and for none of
+the compounds a chip lab tests before any human dose exists. That asymmetry is measured rather than argued: of the 136
+chemicals on the neural chip, 21 have any public human exposure value and 13 of those only a predicted one; for 61 of the
+82 active chemicals — 115 of all 136 — no margin is computed at all, because the missing half is the exposure and not the
+chip (`results/neural_coverage.csv`, Section 7.4). The benchmark is therefore the right place to test whether
+exposure-aware features separate outcomes better than potency alone, and the wrong place to estimate what a chip
+contributes where it is actually used; that estimate needs a dataset that does not yet exist publicly, which is the same
+absence recorded in Section 2.2.
 
 Then leads with the findings that work against us, from `README.md` "Findings we report against ourselves":
 mifepristone and the other cases in `results/failure_cases.csv`; trovafloxacin/levofloxacin as inconclusive;
