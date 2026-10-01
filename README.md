@@ -16,7 +16,7 @@ The output is a ratio against patient exposure or a daily dose in mg, never a 0-
 ```bash
 git clone https://github.com/millerandmuller/chip2dose && cd chip2dose
 make            # creates .venv (Python 3.11), downloads + verifies data, writes results/
-make test       # 96 tests
+make test       # 97 tests
 ```
 
 A full `make` takes about 2-3 minutes on an idle laptop CPU and up to ~10 minutes on a busy one; the

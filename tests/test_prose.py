@@ -285,3 +285,58 @@ def test_the_readme_names_the_concentration_basis_on_every_surface_it_describes(
     text = _flat(README)
     for clause in README_BASIS_CLAUSES:
         assert clause in text, clause
+
+
+# The two claims the confound paragraph turns on. Neither is a value out of `validation.json`; each is a
+# statement ABOUT it, so the number law above cannot see either one - inverting "contains" to "neither
+# contains", or "was not computed" to "was computed", left the whole suite green in both documents. They
+# are pinned the way the increment paragraph is, in both directions at once: the relation is recomputed
+# from the run first, so the sentence cannot quietly become false when the data move, and then the
+# sentence is required verbatim, so it cannot quietly stop saying what was computed. Identical wording in
+# both files on purpose - one literal, two documents, no room for them to drift apart.
+CONFOUND_CLAIM_NO_COMPARISON = ("no paired difference between these two arms was pre-registered or computed")
+CONFOUND_CLAIM_CONTAINMENT = ("on both endpoints each arm's interval contains the other arm's point estimate")
+CONFOUND_CLAIM_CONCLUSION = ("nothing here shows either arm separating the outcome better than the other")
+
+
+def _contains_each_others_point_estimate(endpoint: str) -> tuple[bool, bool]:
+    """Whether each of the two arms' intervals covers the other's point estimate, both directions."""
+    arm, potency = _arm(endpoint, ASSAY_COUNT_ARM), _arm(endpoint, POTENCY_ARM)
+    return (arm["ci_low"] <= potency["auc"] <= arm["ci_high"],
+            potency["ci_low"] <= arm["auc"] <= potency["ci_high"])
+
+
+def _comparisons() -> list[str]:
+    """Every paired comparison the run computed, across both endpoints and all of their blocks."""
+    validation = json.loads((config.RESULTS / "validation.json").read_text())
+    return [comparison["comparison"]
+            for endpoint in validation.values()
+            for block in endpoint.values() if isinstance(block, dict)
+            for comparison in block.get("comparisons", [])]
+
+
+def test_the_confound_paragraph_claims_only_what_the_run_supports():
+    """The paragraph says the assay count and potency alone are two levels and not a comparison. That
+    rests on two facts about the run, and a reader has no way to check either, so they are checked here.
+
+    Both halves matter and they fail differently. If the data move so that an interval no longer covers
+    the other arm's point estimate, the first assertion fires and the prose is wrong and must be
+    rewritten. If someone edits the prose to assert the opposite of what the run supports, the second
+    fires and the prose is wrong and the run is right. Guarding only one of the two leaves the other
+    free, which is how this paragraph came to say the assay count "beats" potency alone with no paired
+    difference anywhere in the repository."""
+    for endpoint in ("wide", "narrow"):
+        covers_potency, covered_by_potency = _contains_each_others_point_estimate(endpoint)
+        assert covers_potency and covered_by_potency, (endpoint, covers_potency, covered_by_potency)
+
+    both = [c for c in _comparisons() if ASSAY_COUNT_ARM in c and POTENCY_ARM in c]
+    assert both == [], both
+    # Cardinality on the side that could pass vacuously: an empty comparison list would satisfy the line
+    # above while meaning the run computed nothing at all.
+    assert len(_comparisons()) >= 15, len(_comparisons())
+
+    for document in (README, OUTLINE):
+        text = _flat(document)
+        for claim in (CONFOUND_CLAIM_NO_COMPARISON, CONFOUND_CLAIM_CONTAINMENT):
+            assert text.count(claim) == 1, (document, claim, text.count(claim))
+    assert _flat(README).count(CONFOUND_CLAIM_CONCLUSION) == 1, CONFOUND_CLAIM_CONCLUSION
