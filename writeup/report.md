@@ -432,7 +432,7 @@ Answered in full in **Section 8**, forward rather than as a limitation: on the p
 ```bash
 git clone https://github.com/millerandmuller/chip2dose && cd chip2dose
 make            # creates .venv (Python 3.11), downloads + verifies data, writes results/
-make test       # 97 tests
+make test       # 100 tests
 ```
 
 `make` regenerates **all 35 files in `results/`** — every figure and every table in this report. It takes about 2–3 minutes on an idle laptop CPU and up to roughly 10 minutes on a busy one; the pre-registered validation (20 × 5 grouped cross-validation, 2,000 bootstrap draws) is the slow step. **No GPU, no paid service, no API key.** If `python3.11` is not on the PATH: `make PYTHON=python3`.

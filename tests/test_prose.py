@@ -15,11 +15,14 @@ the prose silently contradicting the repo it ships in.
 """
 
 import json
+import pathlib
 import re
 import subprocess
 import sys
 
-from src import config
+import pandas as pd
+
+from src import config, figures
 
 from tests.test_data_and_labels import (
     BENCHMARK_ASSAY_DECIDES,
@@ -340,3 +343,103 @@ def test_the_confound_paragraph_claims_only_what_the_run_supports():
         for claim in (CONFOUND_CLAIM_NO_COMPARISON, CONFOUND_CLAIM_CONTAINMENT):
             assert text.count(claim) == 1, (document, claim, text.count(claim))
     assert _flat(README).count(CONFOUND_CLAIM_CONCLUSION) == 1, CONFOUND_CLAIM_CONCLUSION
+
+
+# The report is the deliverable, and until this point it was the only artifact no test opened. It
+# restates, in new words, every claim the two files above are guarded for: the arm table, the paired
+# differences, the composition of the benchmark, the confound's two qualitative claims, the coverage
+# funnel, and the two figures' own captions. Guarded the same way and for the same reason - not to
+# freeze the prose, which will keep moving, but so that a number or a claim cannot drift away from the
+# run while the document still reads correctly.
+REPORT = "writeup/report.md"
+REPORT_SCORE = re.compile(r"(?:AUC|reaches) (\d\.\d+)")
+REPORT_SCORE_WITH_CI = re.compile(r"(\d\.\d{3}) \[(\d\.\d{3}), (\d\.\d{3})\]")
+
+
+def _generated_arms_with_intervals() -> set[tuple[float, float, float]]:
+    """Every arm the run wrote, as (auc, ci_low, ci_high), across both endpoints and all blocks."""
+    validation = json.loads((config.RESULTS / "validation.json").read_text())
+    return {(a["auc"], a["ci_low"], a["ci_high"])
+            for endpoint in validation.values()
+            for block in endpoint.values() if isinstance(block, dict)
+            for a in block.get("arms", [])}
+
+
+def test_the_report_states_only_scores_the_run_generated():
+    """Same law as `test_every_score_the_prose_states_is_one_the_run_generated`, over the report.
+
+    Deliberately the general law rather than a list of literals: the report is long, it will be
+    rewritten more than once before submission, and a guard that enumerates its sentences would be
+    rewritten with it and would stop meaning anything. What must hold through every rewrite is that a
+    reviewer cannot find a score in it that no run produced."""
+    aucs, deltas = _generated_scores()
+    aucs_with_intervals = _generated_arms_with_intervals()
+    text = _flat(REPORT)
+
+    # Two patterns rather than the README's one, because the report also discusses concentrations and
+    # structural similarities, and a bare "at 0.39" has the same shape as "reaches 0.845". The bare
+    # trigger is therefore AUC/reaches only - verified non-weakening: every score in this document is
+    # introduced by one of those two words, and the only numbers a bare "at" adds are a Tanimoto
+    # similarity and a micromolar Cmax, neither of which is a score. Bounding on [0, 1] would not have
+    # separated them, because a Tanimoto lives there too.
+    for printed in REPORT_SCORE.findall(text):
+        assert any(_prints_as(value, printed) for value in aucs), (printed, "no generated arm matches")
+
+    # The stronger half, and the one that does the work: every value the report prints with an interval
+    # beside it. That shape is unambiguous - a similarity coefficient never carries a confidence
+    # interval - and it covers far more of the document than the bare form does.
+    for value, low, high in REPORT_SCORE_WITH_CI.findall(text):
+        assert any(_prints_as(a, value) and _prints_as(lo, low) and _prints_as(hi, high)
+                   for a, lo, hi in aucs_with_intervals), (value, low, high, "no generated arm matches")
+    for printed in PROSE_INCREMENT.findall(text):
+        delta, low, high = printed
+        assert any(_prints_as(d, delta) and _prints_as(lo, low) and _prints_as(hi, high)
+                   for d, lo, hi in deltas), (printed, "no generated comparison matches")
+
+
+def test_the_report_carries_the_claims_the_run_supports_and_not_their_opposites():
+    """The three load-bearing claims, each pinned to the fact that makes it true.
+
+    The confound pair is the one the README and the outline already carry, repeated here because the
+    report states it in its own words and a guard on two of three documents is a guard on none. The
+    coverage funnel is pinned to the generated table rather than to a literal, so a data-vintage change
+    turns this red instead of leaving a recorded video and a printed report contradicting the repo."""
+    text = _flat(REPORT)
+    for claim in (CONFOUND_CLAIM_NO_COMPARISON, CONFOUND_CLAIM_CONTAINMENT):
+        assert text.count(claim) == 1, (claim, text.count(claim))
+
+    coverage = pd.read_csv(config.RESULTS / "neural_coverage.csv")
+    counts = dict(zip(coverage["stage"].str.strip(), coverage["count"]))
+    tested, active, with_comparator = (int(counts["chemicals tested"]), int(counts["active"]),
+                                       int(counts["with a human exposure comparator"]))
+    # The funnel the report leads with, stated as the gap rather than the coverage. Checked over EVERY
+    # occurrence and not by presence: the report states the gap twice, in the opening and again in
+    # Section 8.3, and a presence check is satisfied by whichever copy was not edited.
+    for pattern, expected in ((r"(\d+) have no public human exposure value", tested - with_comparator),
+                              (r"(\d+) chemicals (?:the|a) ", tested),
+                              (r"(\d+) are active", active)):
+        found = re.findall(pattern, text)
+        assert found, (pattern, "the report no longer states this count at all")
+        assert all(int(n) == expected for n in found), (pattern, found, expected)
+
+    # The benchmark's composition has to precede the first result, which is the whole point of
+    # stating it: a reader must not meet an AUC before they know what the potency behind it is.
+    assert text.index("not one of the 23 is an organ-chip measurement") < text.index("0.887 [0.826, 0.937]")
+
+
+def test_every_figure_the_report_embeds_exists_and_names_its_generator():
+    """A caption that names the wrong function is worse than no caption, and a broken image path is
+    invisible in a diff and obvious to a reviewer."""
+    import re
+    text = (config.ROOT / REPORT).read_text()
+    embedded = re.findall(r"!\[[^\]]*\]\(([^)]+)\)", text)
+    assert len(embedded) >= 5, embedded
+    for rel in embedded:
+        assert (config.ROOT / "writeup" / rel).resolve().is_file(), rel
+        name = pathlib.PurePath(rel).name
+        assert f"`results/{name}`" in text, f"{name}: caption does not name the file it came from"
+    for generator in ("figures.card_image()", "figures.neural_coverage_figure()",
+                      "figures.architecture_figure()", "figures.roc_figure()",
+                      "figures.paired_difference_figure()"):
+        assert f"`{generator}`" in text, generator
+        assert hasattr(figures, generator[len("figures."):-2]), generator
