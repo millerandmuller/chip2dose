@@ -1,21 +1,22 @@
 # Chip2Dose — technical report outline
 
-Target: 15–20 pages. Sections marked *(outline)* carry their intent and their source of numbers, not yet their
-prose. Sections written out below are final text, and every number in them is taken from `results/summary.md`
-or from the cited paper; none is typed by hand from memory.
+Target: 15–20 pages. **The report itself is now drafted in full at `writeup/report.md` (~8,500 words, about 17
+pages).** This file stays as the plan it was written to be: the intent of each section and the source of every
+number in it. Where the two differ, `report.md` is the deliverable and this file is the record of what it was
+asked to do. Every number in both is taken from `results/` or from the cited paper; none is typed from memory.
 
 | # | Section | Pages | Status |
 |---|---|---|---|
-| 1 | Problem: a chip gives a concentration, a patient gets a dose | 1.5 | *(outline)* |
+| 1 | Problem: a chip gives a concentration, a patient gets a dose | 1.5 | **drafted** |
 | 2 | Prior work and what is new here | 1.5 | **written** |
-| 3 | Data: three published sets, provenance and licenses | 2 | *(outline)* |
-| 4 | Method: point of departure → dose → margin → uncertainty | 3 | *(outline)* |
-| 5 | Method: the learned model, and why it is the AI method here | 1.5 | *(outline)* |
-| 6 | Experiments: the pre-registered plan and the split | 1.5 | *(outline)* |
-| 7 | Results | 3 | partly **written** (7.2) |
-| 8 | Failures, limitations and bias | 2 | *(outline)* |
-| 9 | Reproduction | 0.5 | *(outline)* |
-| 10 | AI-use disclosure, team composition, future plans | 1 | *(outline)* |
+| 3 | Data: three published sets, provenance and licenses | 2 | **drafted** |
+| 4 | Method: point of departure → dose → margin → uncertainty | 3 | **drafted** |
+| 5 | Method: the learned model, and why it is the AI method here | 1.5 | **drafted** |
+| 6 | Experiments: the pre-registered plan and the split | 1.5 | **drafted** |
+| 7 | Results | 3 | **drafted** |
+| 8 | Failures, limitations and bias | 2 | **drafted** |
+| 9 | Reproduction | 0.5 | **drafted** |
+| 10 | AI-use disclosure, team composition, future plans | 1 | **drafted** |
 
 ---
 
