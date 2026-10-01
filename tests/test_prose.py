@@ -281,6 +281,23 @@ def test_the_readme_states_the_number_of_tests_the_suite_actually_collects():
     assert stated.group(1) == found.group(1), (stated.group(1), found.group(1))
 
 
+def test_every_document_that_counts_the_results_files_counts_them_correctly():
+    """The sentence `make` regenerates all N files in `results/` is the reproduction claim a reviewer
+    checks by running it, and it is the test count's twin: a round that adds an artifact has no more reason to
+    look at it than a round that adds a test had to look at the other one. It went 34 → 35 → 36 on the
+    last two artifacts, and both moves were caught by eye rather than by this suite. Read off disk, not
+    from a literal here, so the next added figure fails this test instead of drifting past it.
+
+    Checked wherever the claim appears rather than in one named file, so moving the sentence between
+    documents, or repeating it, keeps it guarded."""
+    actual = sum(1 for p in config.RESULTS.rglob("*") if p.is_file())
+    stated = [(document, int(m.group(1)))
+              for document in (README, OUTLINE, REPORT)
+              for m in re.finditer(r"all (\d+) files in `results/`", _flat(document))]
+    assert stated, "no document states the results/ file count any more - was the claim deleted?"
+    assert all(n == actual for _, n in stated), (stated, actual)
+
+
 def test_the_readme_names_the_concentration_basis_on_every_surface_it_describes():
     """The basis clauses added in round 6 are the labels that keep four converted numbers from being read
     on the wrong basis, and the last of them labels every dose the method section prints below it.
