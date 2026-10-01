@@ -74,6 +74,61 @@ def test_readout_slot_gives_bands_and_units(capsys):
     assert "margin (free)" in out and "Band" in out
 
 
+# The arguments typed on camera in the walkthrough, and every line the audience reads back.
+#
+# Pinned by EQUALITY over the whole output, not by containment on a phrase, for three reasons.
+# (1) These values are spoken aloud, and a recording cannot be re-run the way code can, so a
+# silent move here ships a video asserting a number the repo no longer produces. (2) Containment
+# cannot see a new sibling line appearing in the middle of the frame, which has bitten us twice
+# before in this same output. (3) The arguments only this entry point supplies
+# -- --fu-plasma and --fu-medium, which every other path reads from the published study instead
+# of from the user -- are covered by nothing else: the hero pair pins the shared margin engine
+# through results/summary.md, so a change to the engine goes red there, but dropping either of
+# these two on the way in moves the first line from 100x to 2x with the rest of the suite green.
+#
+# The spoken figures live on line 3: 500 mg, band 186 to 1,340, against 200 prescribed. Lines 1
+# and 2 are on screen beside them and each names its own basis, which is the constraint the beat
+# works under. Line 6 is the organ caveat that bounds what the walkthrough may claim about other
+# tissues, so it is pinned here rather than assumed. If a deliberate change makes this test red,
+# the walkthrough script has to change with it -- that is the point, not a nuisance.
+WALKTHROUGH_ARGV = ["--readout", "5", "--cmax", "2", "--fu-plasma", "0.02",
+                    "--fu-medium", "0.8", "--dose-mg", "200", "--name", "Your compound"]
+WALKTHROUGH_OUTPUT = (
+    "Your compound: margin (free) 100x - below the convention threshold 375 (Liver-Chip, two donors: "
+    "sensitivity 87% [62-96%], specificity 100% (27 drugs)). Band: 37.2x to 268x.",
+    "Your compound: margin (total) 2.5x - below the convention threshold 50 (Liver-Chip, two donors: "
+    "sensitivity 80% [54-93%], specificity 100% (27 drugs)). Band: 0.93x to 6.7x.",
+    "Chip-derived daily dose (on total concentration): 500 mg (band 186 to 1,340 mg) against 200 mg, "
+    "linear PK assumed.",
+    "  assumption: chip POD: single value, 3-fold uncertainty assumed",
+    "  assumption: equivalent daily dose assumes linear pharmacokinetics (Cmax proportional to dose)",
+    "Thresholds are Liver-Chip conventions (Ewart et al. 2022); for another organ, read the margin, "
+    "not the verdict.",
+)
+
+
+def test_the_walkthrough_command_returns_exactly_the_lines_it_is_shown_returning(capsys):
+    """A reader's own chip value in, a dose out, pinned line for line.
+
+    Checked in two steps so a failure says which kind it is: the three figures that are read
+    aloud first, then the whole output by equality. Without the first step a reformatted line
+    and a moved number fail identically, and the one that matters is the number."""
+    import run_demo
+    assert run_demo.main(WALKTHROUGH_ARGV) == 0
+    lines = capsys.readouterr().out.splitlines()
+
+    # Anchored on the line's own prefix, not on "daily dose": that phrase also occurs in the
+    # linear-PK assumption line below it, so the loose selector picks two lines and would have
+    # gone on to check the figures against whichever came first. Measured on this output:
+    # "daily dose" matches 2, "Chip-derived daily dose" matches 1.
+    dose_line = [line for line in lines if line.startswith("Chip-derived daily dose")]
+    assert len(dose_line) == 1, lines          # cardinality first: an empty selection proves nothing
+    for figure in ("500 mg", "band 186 to 1,340 mg", "against 200 mg"):
+        assert figure in dose_line[0], (figure, dose_line[0])
+
+    assert tuple(lines) == WALKTHROUGH_OUTPUT
+
+
 def test_neural_chemicals_are_found_by_name():
     text = "\n".join(compound.describe("rotenone"))
     assert "Neural MEA" in text and "AED vs predicted exposure" in text

@@ -16,7 +16,7 @@ The output is a ratio against patient exposure or a daily dose in mg, never a 0-
 ```bash
 git clone https://github.com/millerandmuller/chip2dose && cd chip2dose
 make            # creates .venv (Python 3.11), downloads + verifies data, writes results/
-make test       # 95 tests
+make test       # 96 tests
 ```
 
 A full `make` takes about 2-3 minutes on an idle laptop CPU and up to ~10 minutes on a busy one; the
@@ -218,9 +218,12 @@ class definitions. The matched rows above are the comparison.
 - The literature benchmark's lowest POD is the minimum over however many assays were run on a drug, so a drug tested
   more often has more chances at a low minimum. Measured as its own arm (exploratory, post-hoc, added 2026-09-30 after
   the pre-registered results were read; `results/exploratory_wide.csv`), the assay count alone reaches **AUC 0.655
-  [0.566, 0.741]** on the primary endpoint against potency alone's 0.647 — so it separates the outcome about as well as
-  potency does — and **0.723 [0.634, 0.806]** on the stricter endpoint, where it is *better* than potency alone's 0.664.
-  Both intervals overlap the potency arm's. This favours the potency arm, i.e. works against our headline, and is
+  [0.566, 0.741]** on the primary endpoint and **0.723 [0.634, 0.806]** on the stricter one. Potency alone, scored on
+  the same drugs in the same bootstrap draws, reaches 0.647 [0.549, 0.739] and 0.664 [0.563, 0.754]. Those are two
+  levels, not a comparison: no paired difference between these two arms was pre-registered or computed, and on both
+  endpoints each arm's interval contains the other arm's point estimate, so nothing here shows either arm separating
+  the outcome better than the other. What it does show is that a count of how often a drug happened to be tested lands
+  in the same range as its measured potency. This favours the potency arm, i.e. works against our headline, and is
   reported rather than corrected: the exposure-aware arms reach 0.887 and 0.952 on the same two endpoints, so the
   confound does not account for the difference, but it does mean "potency alone" is not a clean measure of potency.
 - Grouping links drugs at Morgan Tanimoto >= 0.4; 47 cross-group pairs sit between 0.3 and 0.4 (e.g. ciprofloxacin /
