@@ -43,10 +43,20 @@ Four things, in the order they matter. Each is established in the section linked
 
 ## Reproduce everything
 
-**Environment specification.** Python 3.11 with `requirements.txt` (eight dependencies, every one `==`-pinned) and a
-`Makefile` that builds the virtual environment, fetches and checksums the data, and writes `results/`. No container
-is required and none is used. A full `make` takes about 2-3 minutes on an idle laptop CPU and up to ~10 minutes on a
-busy one; the pre-registered validation (20 x 5 grouped cross-validation, 2,000 bootstrap draws) is the slow step.
+**Environment specification.** `requirements.txt` **is** the environment specification for this project, together
+with the `Makefile` that consumes it. There is deliberately no `environment.yml` and no `Dockerfile`: the pipeline is
+eight `==`-pinned Python packages and nothing else, so a conda environment or a container would add a layer without
+pinning anything the lockfile does not already pin. The `Makefile` builds the virtual environment, fetches and
+checksums the data, and writes `results/`.
+
+**Measured on the machine that produced every number in this repository:** macOS 26.5 (build 25F71), Apple silicon
+(arm64), Python 3.11.15. No step calls out to the operating system and nothing in the pipeline is platform-specific,
+so any macOS or Linux machine with Python 3.11 should reproduce the results. Byte-identical output files were
+verified on the machine above; figure rendering can differ by a pixel across platforms and font stacks, so the CSVs
+in `results/` rather than the PNGs are the artifacts to diff if you are checking a rebuild against ours.
+
+A full `make` takes about 2-3 minutes on an idle laptop CPU and up to ~10 minutes on a busy one; the pre-registered
+validation (20 x 5 grouped cross-validation, 2,000 bootstrap draws) is the slow step.
 **No GPU, no paid service, no API key.** If `python3.11` is not on your PATH: `make PYTHON=python3`.
 
 Network access is needed once: two input files (Geci et al.) are not redistributed here because their repository has
