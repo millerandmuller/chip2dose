@@ -8,6 +8,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import matplotlib
+import matplotlib.patches
 import matplotlib.ticker
 
 matplotlib.use("Agg")
@@ -481,4 +482,105 @@ def neural_figure(neural_margins: pd.DataFrame, n_chemicals: int, n_active: int,
     fig.suptitle(f"Neural network-formation chip (EPA MEA): {n_chemicals} chemicals tested, {n_active} active, "
                  f"{n_unique} with an exposure comparator.\nNo published threshold exists for this endpoint; no verdicts.",
                  fontsize=17, y=1.03)
+    return _save(fig, path)
+
+
+# --------------------------------------------------------------------------- architecture
+
+def architecture_figure(path: Path, n_sources: int, n_files: int, n_liver: int,
+                        n_benchmark: int, n_neural: int) -> Path:
+    """The system architecture: checksummed inputs, the deterministic path, and the refusal branches.
+
+    Generated rather than drawn by hand, for the same reason every other figure here is: a diagram that
+    disagrees with the code is worse than no diagram. Every count in a box is passed in from the table
+    the pipeline just produced, so the picture cannot drift away from the numbers in the report.
+
+    Layout note: box heights are derived from the line count rather than fixed, because a hand-set
+    height silently clips the last line when the text grows."""
+    LINE, PAD_TOP, PAD_BOT = 3.0, 4.6, 2.2
+
+    fig, ax = plt.subplots(figsize=(16, 9.4), dpi=120)
+    ax.set_xlim(0, 100), ax.axis("off")
+
+    def box(x, y_top, w, title, lines, colour, fill="white"):
+        """Draw a box whose height fits its text, anchored at its top edge. Returns (bottom, centre_x)."""
+        h = PAD_TOP + LINE * len(lines) + PAD_BOT
+        y = y_top - h
+        ax.add_patch(matplotlib.patches.FancyBboxPatch(
+            (x, y), w, h, boxstyle="round,pad=0.5", linewidth=2.0, edgecolor=colour, facecolor=fill))
+        ax.text(x + w / 2, y_top - 1.9, title, ha="center", va="top", fontsize=12.5, weight="bold", color=colour)
+        for i, line in enumerate(lines):
+            ax.text(x + w / 2, y_top - PAD_TOP - 0.7 - i * LINE, line, ha="center", va="top",
+                    fontsize=10.2, color=BLACK)
+        return y, x + w / 2
+
+    def arrow(x1, y1, x2, y2, colour=BLACK, lw=1.8):
+        ax.annotate("", xy=(x2, y2), xytext=(x1, y1),
+                    arrowprops=dict(arrowstyle="-|>", color=colour, lw=lw, shrinkA=1, shrinkB=1))
+
+    TOP = 51.0
+    stages = [
+        (1.0, 22.0, f"{n_sources} published sources", [
+            "Liver-Chip (Ewart 2022, CC-BY)", "Benchmark (Geci 2026, pinned)",
+            "Neural MEA (EPA, public domain)", "DILIrank 2.0 (FDA)",
+            f"{n_files} files, every SHA-256 checked"], SKY),
+        (26.5, 20.0, "Point of departure", [
+            f"Liver-Chip: {n_liver} drugs, per donor", f"Benchmark: {n_benchmark} drugs",
+            f"Neural: {n_neural} chemicals", "censored values stay bounds,", "never numbers"], BLUE),
+        (51.0, 21.0, "Margin engine", [
+            "margin_total = POD / Cmax", "margin_free = POD x fu_med", "                    / (Cmax x fu_pl)",
+            "20,000 Monte-Carlo draws", "band = 5th-95th percentile"], BLUE),
+        (77.0, 22.0, "Verdict gate", [
+            "against a published convention", "with its error rates printed",
+            "free 375 / total 50", "(Liver-Chip conventions)", "- or it refuses, below -"], VERMILLION),
+    ]
+    bottoms = []
+    for x, w, title, lines, colour in stages:
+        bottom, cx = box(x, TOP, w, title, lines, colour)
+        bottoms.append((bottom, cx, x, w))
+    mid_y = (TOP + bottoms[0][0]) / 2
+    for i in range(3):
+        _, _, x, w = bottoms[i]
+        arrow(x + w + 0.6, mid_y, stages[i + 1][0] - 0.6, mid_y)
+
+    # --- refusal branches, directly under the gate that produces them --------
+    gate_bottom = bottoms[3][0]
+    ax.text(50, gate_bottom - 2.0, "The gate refuses more often than it answers",
+            ha="center", va="top", fontsize=12.5, weight="bold", color=VERMILLION)
+    refusals = [("no clinical exposure", 'return "no margin computed"'),
+                ("censored point of departure", 'return "inconclusive"'),
+                ("band straddles the convention", 'return "straddles"'),
+                ("fraction unbound unknown", "widen the band to 0.001-1"),
+                ("zero / non-finite input", "name the reason, no verdict")]
+    y0 = gate_bottom - 7.0
+    for i, (cause, effect) in enumerate(refusals):
+        y = y0 - i * 3.1
+        ax.text(45.0, y, cause, ha="right", va="center", fontsize=10.4, color=BLACK)
+        arrow(46.0, y, 51.5, y, colour=VERMILLION, lw=1.3)
+        ax.text(52.5, y, effect, ha="left", va="center", fontsize=10.4, color=VERMILLION)
+    refusal_bottom = y0 - (len(refusals) - 1) * 3.1
+
+    # --- three outputs ------------------------------------------------------
+    out_top = refusal_bottom - 4.0
+    outs = [(1.0, 29.0, "Margin, with a band",
+             ["ratio against patient exposure,", "on both bases, 5th-95th band"], GREEN, "#F2F8F3"),
+            (35.5, 29.0, "Dose, with a band",
+             ["mg/day at which Cmax would reach", "the chip's toxic concentration"], GREEN, "#F2F8F3"),
+            (70.0, 29.0, "No verdict",
+             ["stated as such, with the reason;", "never a default, never a score"], VERMILLION, "#FBF3F2")]
+    out_bottom = out_top
+    for x, w, title, lines, colour, fill in outs:
+        out_bottom, _ = box(x, out_top, w, title, lines, colour, fill=fill)
+        arrow(x + w / 2, out_top + 3.4, x + w / 2, out_top + 0.6, colour=GREY, lw=1.4)
+
+    # The canvas is sized from the content, not guessed: a fixed ylim clipped the output row the
+    # moment the refusal list grew by one line.
+    ax.set_ylim(out_bottom - 4.5, 58.5)
+
+    ax.text(50, 57.6, f"Chip2Dose: {n_sources} checksummed public sources, one deterministic path, "
+                      "three outcomes - one of which is a refusal",
+            ha="center", va="top", fontsize=15, weight="bold")
+    ax.text(50, out_bottom - 1.6, "Generated by figures.architecture_figure(); "
+            "no language model is in this path.",
+            ha="center", va="top", fontsize=9.5, color=GREY, style="italic")
     return _save(fig, path)

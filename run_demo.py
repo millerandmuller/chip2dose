@@ -275,6 +275,14 @@ def main(argv: list[str] | None = None) -> int:
     print("cross-checks ..."); checks = run_crosschecks()
     print("liver-chip margins and pair views ..."); liver_margins, pairs = run_liver()
     print("neural-chip margins ..."); neural_potency, neural_margins, neural_coverage = run_neural()
+    # The architecture diagram is generated like every other figure, and its box counts come from the
+    # tables just produced rather than from a drawing tool, so it cannot drift away from the pipeline.
+    figures.architecture_figure(config.RESULTS / "architecture.png",
+                                n_sources=4,  # Ewart, Geci, EPA MEA, DILIrank -- the citations in README
+                                n_files=len(pd.read_csv(config.ROOT / "data" / "provenance.csv")),
+                                n_liver=len(liver_margins),
+                                n_benchmark=len(validate.benchmark_table()),
+                                n_neural=len(neural_potency))
     validation = {}
     if not args.skip_validation:
         print("pre-registered validation (the slow step: minutes on a laptop) ..."); validation = run_validation()
