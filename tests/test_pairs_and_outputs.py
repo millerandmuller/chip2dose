@@ -313,6 +313,38 @@ def test_the_run_writes_the_submission_card_at_the_size_the_editor_requires(tmp_
     assert _png_size(card) == (560, 280)
 
 
+def test_the_run_also_writes_the_card_at_video_resolution(tmp_path, monkeypatch):
+    """The submission video holds this card full-frame for 25 s of its opening demonstration, so it is
+    needed at 1080p rather than as a 3.4x upscale of the 560 px card. Pinned the same way the card is,
+    and for the same reason: the literal is the test. 1920 x 960 keeps the card's 2:1 aspect, so the
+    two renderings are the same composition at two sizes and neither needs a crop."""
+    import run_demo
+    monkeypatch.setattr(config, "RESULTS", tmp_path)
+    run_demo.run_liver()
+    card_video = tmp_path / "card_video.png"
+    assert card_video.exists(), sorted(p.name for p in tmp_path.iterdir())
+    assert _png_size(card_video) == (1920, 960)
+    small, large = _png_size(tmp_path / "card.png"), _png_size(card_video)
+    assert small[0] / small[1] == large[0] / large[1], "the two cards must share one aspect ratio"
+
+
+def test_the_card_caption_stays_inside_both_renderings(tmp_path):
+    """Glyph advances are hinted to whole pixels, so a caption tuned to the edge of the 560 px card
+    runs past it at 1920 px and loses its last word - in the one shot of the video that cannot be cut.
+    This pins the fit itself rather than the font size, so a longer caption fails here instead of
+    silently clipping in a video frame."""
+    import matplotlib.image
+
+    margins = liver.margin_table()
+    for name, aspect in (("card.png", figures.CARD), ("card_video.png", figures.CARD_VIDEO)):
+        path = figures.card_image(margins, "troglitazone", "pioglitazone", tmp_path / name,
+                                  aspect=aspect)
+        # Second-to-last column, not the last: the saved canvas can carry a single-pixel edge
+        # artefact that says nothing about the text. Anything darker than white here is ink.
+        column = matplotlib.image.imread(path)[:, -2, :3]
+        assert (column > 0.99).all(), f"{name}: ink in the last pixel column - a text is clipped"
+
+
 def test_the_card_refuses_a_pair_whose_margin_is_only_a_lower_bound(tmp_path):
     """The card carries the margin and has no room for a footnote, so it must never show a censored
     POD's margin, which is a lower bound and not a measured value. Ambrisentan's POD is censored."""

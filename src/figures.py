@@ -26,6 +26,14 @@ VIDEO = dict(figsize=(16, 9), dpi=120)
 # The Kaggle Writeup editor asks for 560 x 280 ("Dimensions for the image (560 x 280)", read off the
 # editor 2026-09-29, m0_findings.md 6b). Produced at exactly that size so no crop step can move it.
 CARD = dict(figsize=(5.6, 2.8), dpi=100)
+# The same card at video resolution: it is on screen full-frame for 25 s of the hero beat, where
+# 560 px upscaled to 1080p would soften the text while every other figure sits at native size.
+# Same canvas in inches, so every point size, line width and offset in `card_image` keeps its exact
+# share of the card; only the dpi rises, until 5.6 in is 1920 px and 2.8 in is 960 px (2:1 kept).
+# Scaling figsize instead would hold the fonts at their point size while the canvas grew 3.43x,
+# shrinking the headline from 2.85 % of the card's width to 0.83 % - a different composition, not
+# the same one larger.
+CARD_VIDEO = dict(figsize=CARD["figsize"], dpi=1920 / CARD["figsize"][0])
 
 plt.rcParams.update({
     "font.size": 16, "axes.titlesize": 19, "axes.labelsize": 16, "xtick.labelsize": 14,
@@ -42,6 +50,25 @@ def _save(fig: plt.Figure, path: Path, **savefig: object) -> Path:
     output.atomic_write(path, lambda tmp: fig.savefig(tmp, format=path.suffix.lstrip("."), **savefig))
     plt.close(fig)
     return path
+
+
+def _fit_text_width(fig: plt.Figure, text: plt.Text, limit: float = 0.99) -> None:
+    """Shrink `text` until its right edge sits inside `limit` of the canvas width.
+
+    Glyph advances are hinted to whole pixels, which compresses a string measurably at 560 px and
+    almost not at all at 1920 px: the card's caption ends at 98.7 % of the width on the small card
+    and would run to 100.8 % on the identical layout at video resolution, losing its last word.
+    So the fit is measured on the rendering in hand rather than inferred from the point size. It is
+    a no-op whenever the line already fits, which is why `card.png` is byte-identical with it.
+    """
+    renderer = fig.canvas.get_renderer()
+    left = text.get_position()[0]
+    width_px = fig.get_size_inches()[0] * fig.dpi
+    for _ in range(8):
+        right = left + text.get_window_extent(renderer).width / width_px
+        if right <= limit:
+            return
+        text.set_fontsize(text.get_fontsize() * (limit - left) / (right - left))
 
 
 def _log_axis(ax: plt.Axes, values: list[float], pad: float = 4.0) -> None:
@@ -233,8 +260,8 @@ def card_image(margins: pd.DataFrame, key_a: str, key_b: str, path: Path,
     It shows the margin rather than the equivalent daily dose because this is the only figure with no
     room for a footnote, and the dose comparison is basis-dependent (see `dose_view`) while the margin
     orders this pair the same way on total and on free concentration. The basis is on the card's face.
-    `aspect` defaults to `CARD` (560 x 280, the size the Kaggle editor asks for); pass another dict to
-    retarget it."""
+    `aspect` defaults to `CARD` (560 x 280, the size the Kaggle editor asks for); pass `CARD_VIDEO`
+    for the same composition at 1920 x 960, which is what the demo video puts on screen."""
     by_key = margins.set_index("key")
     rows = sorted([by_key.loc[key_a], by_key.loc[key_b]], key=lambda r: r["garside_rank"])
     for row in rows:
@@ -281,8 +308,9 @@ def card_image(margins: pd.DataFrame, key_a: str, key_b: str, path: Path,
     # The one surface with no footnote, so the basis and the fold are stated, not implied.
     fig.text(0.02, 0.965, "An organ-chip gives a concentration. A patient gets a dose.",
              fontsize=11.5, weight="bold", va="top")
-    fig.text(0.02, 0.855, card_caption(rows[0]["margin_free"], rows[1]["margin_free"]),
-             fontsize=9.5, color=GREY, va="top")
+    caption = fig.text(0.02, 0.855, card_caption(rows[0]["margin_free"], rows[1]["margin_free"]),
+                       fontsize=9.5, color=GREY, va="top")
+    _fit_text_width(fig, caption)
     return _save(fig, path, bbox_inches=fig.bbox_inches)
 
 

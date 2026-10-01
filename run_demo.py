@@ -79,7 +79,11 @@ def run_liver() -> tuple[pd.DataFrame, pd.DataFrame]:
     figures.pair_view(margins, *HERO_PAIR, config.RESULTS / "pair_view.png")
     figures.dose_view(margins, pairs, *HERO_PAIR, config.RESULTS / "dose_view.png")
     # The submission card, from the same numbers as the dose view so it cannot drift from them.
+    # Twice, from one function and one table: 560 x 280 for the Kaggle card field, and the same
+    # composition at 1920 x 960 for the demo video, which holds it full-frame through the hero beat.
     figures.card_image(margins, *HERO_PAIR, config.RESULTS / "card.png")
+    figures.card_image(margins, *HERO_PAIR, config.RESULTS / "card_video.png",
+                       aspect=figures.CARD_VIDEO)
     matched = {tuple(sorted(p)) for p in zip(margins["key"], margins["partner_key"]) if p[1]}
     for a, b in sorted(matched):
         figures.pair_view(margins, a, b, config.RESULTS / "pairs" / f"pair_{a}_{b}.png")

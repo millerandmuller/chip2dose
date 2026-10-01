@@ -432,10 +432,10 @@ Measured in Section 7.3 and answered in **Section 8**, forward rather than as a 
 ```bash
 git clone https://github.com/millerandmuller/chip2dose && cd chip2dose
 make            # creates .venv (Python 3.11), downloads + verifies data, writes results/
-make test       # 100 tests
+make test       # 102 tests
 ```
 
-`make` regenerates **all 35 files in `results/`** — every figure and every table in this report. It takes about 2–3 minutes on an idle laptop CPU and up to roughly 10 minutes on a busy one; the pre-registered validation (20 × 5 grouped cross-validation, 2,000 bootstrap draws) is the slow step. **No GPU, no paid service, no API key.** If `python3.11` is not on the PATH: `make PYTHON=python3`.
+`make` regenerates **all 36 files in `results/`** — every figure and every table in this report. It takes about 2–3 minutes on an idle laptop CPU and up to roughly 10 minutes on a busy one; the pre-registered validation (20 × 5 grouped cross-validation, 2,000 bootstrap draws) is the slow step. **No GPU, no paid service, no API key.** If `python3.11` is not on the PATH: `make PYTHON=python3`.
 
 **One network dependency, by license and not by design**: the two Geci et al. spreadsheets are not redistributed here (Section 3), so `make data` fetches them at a pinned commit and verifies their SHA-256. Everything else is cached in `data/raw/`. Every entry point re-verifies the input checksums before computing.
 
