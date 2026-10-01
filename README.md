@@ -19,7 +19,7 @@ make test       # 100 tests
 
 ## What is new here
 
-Four things. Each is established in the section linked beside it; this list is only where they appear together.
+Four things, in the order they matter. Each is established in the section linked beside it.
 
 - **A refusal architecture.** The tool declines rather than guesses. A point of departure at which no toxicity was
   seen stays a bound; a missing clinical exposure gives "no margin computed" with no default substituted; an unknown
@@ -27,14 +27,18 @@ Four things. Each is established in the section linked beside it; this list is o
   costs **9 of 27 drugs their verdict**, reported as the headline rather than hidden under the 14 that resolve. A
   column named like a probability cannot reach `results/` without a test failing. ([Method](#method),
   [Validation](#validation-pre-registered))
-- **Dose as the output type.** Milligrams per day with a band, not a 0-1 score — a different product category, not a
-  better model. Classifier probabilities stay inside the validation figures and never become a per-compound number.
-- **The coverage funnel, as a generated finding.** Of 136 chemicals a neural chip has tested, **115 have no public
-  human exposure value of any kind**. The bottleneck is not the chip. Counted by the pipeline into
-  `results/neural_coverage.csv`, not asserted. ([Findings we report against ourselves](#findings-we-report-against-ourselves))
-- **The pre-registration apparatus.** Plan and folds committed before the first evaluation run; folds grouped so
-  matched pairs, the same molecule and structural neighbours never split across a fold; every arm with a
-  group-bootstrap interval; arms compared as a paired difference on identical folds.
+- **Dose is the output type, not a better score.** Milligrams per day with a band, or a margin against the patient's
+  real exposure with a band — never a 0-1 score. A score cannot be taken into a dose discussion and a dose can, which
+  makes this a different product category rather than a better model of the same one. Classifier probabilities stay
+  inside the validation figures and never become a per-compound number. ([Method](#method),
+  [What comes out](#what-comes-out))
+- **The field runs out of exposure data before it runs out of chip data — counted, not argued.** Of 136 chemicals a
+  neural chip has measured, **115 have no public human exposure value of any kind**. The bottleneck everyone assumes
+  is the chip is not the chip. Counted by the pipeline into `results/neural_coverage.csv`, not asserted. ([Findings we report against ourselves](#findings-we-report-against-ourselves))
+- **The evaluation was committed before it was run, and it would have published a null.** Plan and folds committed
+  before the first evaluation run; folds grouped so matched pairs, the same molecule and structural neighbours never
+  split across a fold; every arm with a group-bootstrap interval; arms compared as a paired difference on identical
+  folds. All three possible outcomes were written down in advance, including the two that would have been bad news.
   ([Validation](#validation-pre-registered))
 
 ## Reproduce everything

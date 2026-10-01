@@ -13,6 +13,7 @@ import argparse
 import importlib.util
 import json
 import math
+import re
 import sys
 import time
 import warnings
@@ -35,6 +36,21 @@ def write_csv(frame: pd.DataFrame, name: str) -> Path:
 def public(result: dict) -> dict:
     """Drop in-memory arrays (the per-drug model scores stay inside the validation figures)."""
     return {k: v for k, v in result.items() if not k.startswith("_")}
+
+
+def count_distinct_studies(provenance: pd.DataFrame) -> int:
+    """How many separate published studies the seven input files come from.
+
+    Keyed on the DOI rather than on the citation string, because one study is cited two ways in that
+    column (a full reference for the file that needs it, a short one for its siblings) and counting
+    distinct citations therefore returns 6 for 4 studies. The FDA dataset has no DOI, so its download
+    URL is the key. Derived rather than typed: the architecture figure prints this number, and a
+    literal there would be the one count on that diagram that could drift away from the data.
+    """
+    def key(row: pd.Series) -> str:
+        found = re.search(r"doi:(\S+)", str(row["citation"]))
+        return found.group(1).rstrip(".") if found else str(row["url"]).split("?")[0]
+    return int(provenance.apply(key, axis=1).nunique())
 
 
 def run_crosschecks() -> list[dict]:
@@ -277,9 +293,10 @@ def main(argv: list[str] | None = None) -> int:
     print("neural-chip margins ..."); neural_potency, neural_margins, neural_coverage = run_neural()
     # The architecture diagram is generated like every other figure, and its box counts come from the
     # tables just produced rather than from a drawing tool, so it cannot drift away from the pipeline.
+    provenance = pd.read_csv(config.ROOT / "data" / "provenance.csv")
     figures.architecture_figure(config.RESULTS / "architecture.png",
-                                n_sources=4,  # Ewart, Geci, EPA MEA, DILIrank -- the citations in README
-                                n_files=len(pd.read_csv(config.ROOT / "data" / "provenance.csv")),
+                                n_sources=count_distinct_studies(provenance),
+                                n_files=len(provenance),
                                 n_liver=len(liver_margins),
                                 n_benchmark=len(validate.benchmark_table()),
                                 n_neural=len(neural_potency))
